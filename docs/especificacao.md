@@ -37,8 +37,8 @@ Estado da verificação, com data de consulta 2026-10-22:
 | Fonte | Verificado em fonte primária? | O que se sabe |
 |---|---|---|
 | OpenAlex | Sim ([página de autenticação e limites](https://help.openalex.org/how-to-use-the-api/rate-limits-and-authentication), atualizada em 2026-10-15) | Funciona sem chave com limite menor; chave gratuita aumenta o orçamento diário e é exigida para cursor paging; 10 req/s sem chave, 30 com chave; 429 ao exceder |
-| Unpaywall | **Não** — a página oficial não carregou na consulta | A confirmar: formato do endpoint, exigência de e-mail, limite, campos de licença e versão |
-| Europe PMC | **Não** — acesso à documentação oficial retornou 403 | A confirmar: endpoints, licenças por artigo, limites |
+| Unpaywall | **Parcial** — a página de documentação exige JavaScript e não pôde ser lida; o endpoint real foi chamado em 2026-10-23 | Confirmado por chamada: `GET https://api.unpaywall.org/v2/{doi}?email=...` responde 200 em JSON, com `best_oa_location` (`url_for_pdf`, `version`, `host_type`, `license`). Em um DOI testado `license` veio nulo e `evidence` veio `deprecated`, então licença não pode ser presumida. **Não confirmado:** limite de requisições e termos de uso |
+| Europe PMC | **Parcial** — a documentação da API retornou 403; o endpoint real e a página de acesso aberto foram lidos em 2026-10-23 | Confirmado por chamada: `GET https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:...&format=json` responde 200, com `pmcid`, `isOpenAccess`, `inPMC`, `hasPDF`, `citedByCount`. A [página de acesso aberto](https://europepmc.org/downloads/openaccess) diz que as licenças variam e que vale a declaração de cada artigo. **Não confirmado:** limites de requisições; `isOpenAccess` veio `N` para um artigo que está no PMC, então esse campo não basta para decidir permissão |
 | Sci-Hub | Parcial, por fontes secundárias | Decisões judiciais por violação de direitos autorais (EUA, 2017, à revelia; Índia, 2025) e nenhuma API oficial encontrada |
 
 **Decisão sobre o Sci-Hub:** **não integrar.** Não há API documentada nem base de permissão que eu tenha verificado, e há decisões judiciais contra o serviço. O funcionamento principal nunca depende dele, e o projeto não implementa mecanismos de contorno de acesso. Reavaliar apenas se surgir base legal documentada.
@@ -165,7 +165,7 @@ Cada entrega termina executável. Estado de todas hoje: **Planejado**.
 
 ## 11. Pendências desta especificação
 
-- Verificar Unpaywall e Europe PMC em fonte primária (não carregaram em 2026-10-22).
+- Confirmar limites de requisições e termos de uso do Unpaywall e do Europe PMC (a documentação não carregou; só o comportamento dos endpoints foi verificado).
 - Medir de fato a disponibilidade de artigos abertos no recorte antes da entrega 1.
 - Decidir Kafka versus fila no Postgres após a entrega 3.
 - Instalar JDK 21.
