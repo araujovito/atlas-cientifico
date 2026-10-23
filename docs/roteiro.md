@@ -9,7 +9,7 @@ Objetivo: importar um PDF que a pessoa pode processar, extrair texto por página
 | # | Passo | Critério de conclusão | Estado |
 |---|---|---|---|
 | 1 | Esqueleto Spring Boot 4.1.1 / Java 21 com Postgres em Testcontainers | `./mvnw test` passa com Postgres real | testado |
-| 2 | Esquema inicial (migração Flyway): obra, versão do documento, execução, estudo, experimento, medida, evidência | A migração aplica num banco vazio; constraints impedem medida sem evidência e hash duplicado | planejado |
+| 2 | Esquema inicial (migração Flyway): obra, versão do documento, execução, estudo, experimento, medida, evidência | A migração aplica num banco vazio; constraints impedem medida sem evidência e hash duplicado (6 testes; sem o gatilho de evidência o teste correspondente reprova) | testado |
 | 3 | Upload de PDF: valida tipo, tamanho e hash; guarda o original; devolve o registro | Teste: o mesmo arquivo enviado duas vezes gera um só registro; arquivo que não é PDF é recusado | planejado |
 | 4 | Extração de texto por página (Apache PDFBox) | Teste com PDF de várias páginas devolve o texto de cada página; PDF sem texto vira estado `PRECISA_OCR` | planejado |
 | 5 | Execução de processamento com chave de idempotência (hash + versão do processador) | Reprocessar não duplica páginas nem medidas | planejado |
