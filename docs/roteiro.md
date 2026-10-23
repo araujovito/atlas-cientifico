@@ -1,0 +1,31 @@
+# Roteiro
+
+Acompanha a [especificação](especificacao.md). Cada passo termina com algo executável e um critério de conclusão verificável. Estados: **planejado**, **implementado**, **testado**, **medido**. Um passo só sobe de estado com a evidência ao lado.
+
+## Entrega 1 — importar, processar e mostrar evidência
+
+Objetivo: importar um PDF que a pessoa pode processar, extrair texto por página, guardar medidas com o trecho de origem e exibir a evidência. Reimportar o mesmo arquivo não duplica nada.
+
+| # | Passo | Critério de conclusão | Estado |
+|---|---|---|---|
+| 1 | Esqueleto Spring Boot 4.1.1 / Java 21 com Postgres em Testcontainers | `./mvnw test` passa com Postgres real | testado |
+| 2 | Esquema inicial (migração Flyway): obra, versão do documento, execução, estudo, experimento, medida, evidência | A migração aplica num banco vazio; constraints impedem medida sem evidência e hash duplicado | planejado |
+| 3 | Upload de PDF: valida tipo, tamanho e hash; guarda o original; devolve o registro | Teste: o mesmo arquivo enviado duas vezes gera um só registro; arquivo que não é PDF é recusado | planejado |
+| 4 | Extração de texto por página (Apache PDFBox) | Teste com PDF de várias páginas devolve o texto de cada página; PDF sem texto vira estado `PRECISA_OCR` | planejado |
+| 5 | Execução de processamento com chave de idempotência (hash + versão do processador) | Reprocessar não duplica páginas nem medidas | planejado |
+| 6 | Medidas com evidência a partir de extração pré-gravada (sem chamada paga) | Cada medida tem página e trecho; `valor_original` e unidade preservados | planejado |
+| 7 | Endpoint e tela mínima que mostram uma medida e o trecho de origem | Abrir uma medida mostra a página e o trecho exatos | planejado |
+| 8 | CI no GitHub Actions rodando os testes | Workflow verde no repositório | planejado |
+
+Dependências: Docker (presente), JDK 21 (instalado em `~/.local/jdk`, ver `docs/ambiente.md`).
+
+Limitações conhecidas desta entrega: um domínio, poucos campos, sem OCR, sem Kafka (o processamento ainda é síncrono; a decisão de fila entra na entrega 3).
+
+## Entregas seguintes
+
+Seguem a seção 9 da especificação: 2 descoberta e catálogo, 3 processamento assíncrono robusto, 4 comparação e revisão, 5 rede de citações, 6 operação e AWS, 7 avaliação e medição. Cada uma ganha o seu quadro como esta quando a anterior terminar.
+
+## Pendências transversais
+
+- Escolher e documentar o conjunto de artigos de baterias (licença permite processar?) antes do passo 6.
+- Confirmar limites de requisição e termos do Unpaywall e do Europe PMC antes da entrega 2.
