@@ -252,6 +252,11 @@
       const uploaded = await request('/api/documentos', { method: 'POST', body });
       documentId = uploaded.id;
       if (chosenWork) await request(`/api/catalogo/obras/${chosenWork}/documentos/${documentId}`, { method: 'PUT' });
+      // A escolha vale para um único PDF; sem isto o PDF seguinte seria ligado à mesma obra sem aviso.
+      if (chosenWork && activeWorkId === chosenWork) {
+        activeWorkId = undefined;
+        document.querySelector('#active-work').textContent = 'O próximo PDF será enviado sem vínculo com uma obra.';
+      }
       const task = await request(`/api/documentos/${documentId}/processamentos`, { method: 'POST' });
       try { sessionStorage.setItem('atlas-processamento',task.id); document.querySelector('#resume-processing').hidden = false; } catch { /* acompanhamento funciona sem armazenamento */ }
       const execution = await acompanharTarefa(task.id);
