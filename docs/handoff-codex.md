@@ -22,6 +22,10 @@ Cada correção é um commit pequeno cuja mensagem explica o motivo e o limite d
 | `chave_armazenamento` é só `<sha256>.pdf`, relativo ao diretório configurado | `UploadDocumentoService`, `caminhoSeguro` | `guardaApenasONomeDoArquivo...` reprova. |
 | Apagar a única evidência de uma medida não `AUSENTE` falha no commit | migração V8 | `EsquemaTest` reprova. |
 | Upload sem confirmação não entra, mesmo com obra | migração V8 | idem |
+| Medida repetida (mesmo experimento, métrica, estado, valor, unidade) devolve a existente; outra citação vira outra evidência | `registrarMedida`, V9 | `reenviarAMesmaMedida...` reprova. |
+| Trecho tolera só espaço em branco; o trecho guardado é o da página | `LocalizadorDeTrecho` | `LocalizadorDeTrechoTest` e `aceitaTrechoQueAtravessaQuebraDeLinha...` reprovam. |
+| `/api/**` exige `X-Atlas-Chave` quando `ATLAS_CHAVE_API` está definida | `FiltroChaveApi` | `ChaveApiTest` reprova. |
+| Erros saem como problem+json (`detail`) | `application.properties` | A tela deixa de mostrar o motivo. |
 | Upload não abre transação em volta do arquivo | `UploadDocumentoService.receber` | Só aparece sob carga; não recoloque `@Transactional` ali. |
 
 Migrações aplicadas **não se editam** (quebra o checksum do Flyway); crie a próxima (`V9`...).
@@ -36,7 +40,7 @@ Migrações aplicadas **não se editam** (quebra o checksum do Flyway); crie a p
 
 ## O que NÃO foi decidido (é do autor do projeto)
 
-Autenticação e dono por documento, exclusão de dados e retenção (LGPD), processamento assíncrono, armazenamento em S3, paginação, medida repetida, procedência de quem afirmou, e a licença. A lista e o motivo de cada uma estão em `docs/revisao-cruzada.md`. Não implemente nenhuma sem confirmar com o autor: todas mudam o contrato da API ou uma regra do produto.
+O autor delegou ao revisor as decisões de projeto; o que foi decidido e o que foi adiado, com o motivo, está em `docs/decisoes.md`. Não implemente os itens adiados (contas, fila assíncrona, S3, procedência) sem alinhar: mudam o contrato da API. A exclusão de dados e a LGPD são decisão do autor: não implementar por conformidade.
 
 ## Honestidade nos textos públicos
 

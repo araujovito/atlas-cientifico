@@ -38,12 +38,12 @@ As variáveis `ATLAS_DB_URL`, `ATLAS_DB_USER` e `ATLAS_DB_PASSWORD` mudam a cone
 
 Este é um projeto de portfólio em desenvolvimento, e os pontos abaixo não estão resolvidos:
 
-- **Não há autenticação nem dono do documento.** Quem alcança a porta lê e grava em qualquer documento, e enviar um PDF já existente devolve o registro de quem o enviou antes. Não exponha a API à internet.
+- **Não há contas de usuário nem dono por documento.** Existe uma chave compartilhada: com `ATLAS_CHAVE_API` definida, `/api/**` exige o cabeçalho `X-Atlas-Chave` (a tela tem um campo para ela). Quem tem a chave vê todos os documentos, e enviar um PDF já existente devolve o registro do envio anterior. Sem a variável a API fica aberta, o que serve só para a máquina local.
 - **A autorização para processar é uma declaração**, uma caixa marcada, sem identidade de quem declarou. Registra a afirmação, não a comprova.
 - **Os PDFs e o texto extraído ficam sem criptografia**, em disco e no banco, e não há endpoint de exclusão nem política de retenção.
-- **A extração é síncrona**, dentro da requisição, com limite de páginas mas sem limite de tempo; os endpoints de listagem não têm paginação; o armazenamento é o disco local de uma instância.
+- **A extração é síncrona**, dentro da requisição, com limite de páginas mas sem limite de tempo; o armazenamento é o disco local de uma instância. A lista de medidas é paginada (`limite`, `deslocamento`).
 
-A revisão que originou esta lista, com o que foi corrigido e o que segue aberto, está em [docs/revisao-cruzada.md](docs/revisao-cruzada.md).
+A revisão que originou esta lista está em [docs/revisao-cruzada.md](docs/revisao-cruzada.md), e as decisões tomadas e adiadas, com o motivo, em [docs/decisoes.md](docs/decisoes.md).
 
 ## Upload mínimo
 
@@ -64,4 +64,5 @@ Este endpoint só registra e armazena o PDF. Ainda não extrai texto, não confi
 ## Documentos
 
 - [Especificação inicial](docs/especificacao.md): recorte, arquitetura, modelo de dados, eventos, decisões e entregas.
+- [Decisões](docs/decisoes.md): o que foi escolhido, adiado e por quê.
 - [Revisão cruzada](docs/revisao-cruzada.md): achados da revisão por um segundo agente, o que foi corrigido e o que segue aberto.

@@ -64,9 +64,9 @@ Quatro revisores independentes leram o projeto cada um por uma lente (segurança
 - **V3 funde experimentos ignorando as condições.** A V3 foi escrita quando nenhum código gravava `condicoes` (sempre `{}`), então nenhum banco que aplicou V1 a V3 antes da V5 tem experimentos distintos por condição para fundir. Não foi alterada, porque editar uma migração já aplicada quebra o checksum do Flyway.
 - **Chaves absolutas antigas "seguem valendo".** A frase da seção anterior só vale se o caminho antigo ainda estiver dentro de `ATLAS_DOCUMENTOS_DIR`; fora dele a verificação de caminho recusa com 500. A checagem está correta e bloqueia travessia de diretório; foi o comentário que prometeu demais.
 
-### Decisões de produto, não tomadas
+### Decisões de produto
 
-Cada uma muda uma regra do projeto, então ficou para o Vitor decidir:
+O autor delegou a decisão ao revisor. As tomadas e as adiadas estão em [decisoes.md](decisoes.md). A lista abaixo é a original, antes da delegação:
 
 1. **Autenticação e dono por documento.** É o achado mais grave. Enquanto não existir, o README diz para não expor a API. Junto vem a deduplicação por hash, que devolve o registro de quem enviou antes.
 2. **Exclusão de dados (LGPD).** Endpoint de remoção do PDF, das páginas e das medidas, e política de retenção. O `ON DELETE CASCADE` atual já apagaria tudo de uma vez; trocar por `RESTRICT` obrigaria o endpoint a apagar na ordem.
@@ -79,4 +79,4 @@ Cada uma muda uma regra do projeto, então ficou para o Vitor decidir:
 
 ### Em aberto
 
-1. Trecho literal com quebra de linha (ver acima).
+O trecho com quebra de linha foi corrigido em `f537bd6`. Restam as decisões adiadas em [decisoes.md](decisoes.md), a falta de limite de tempo na extração e a ausência de teste de navegador para a tela.
