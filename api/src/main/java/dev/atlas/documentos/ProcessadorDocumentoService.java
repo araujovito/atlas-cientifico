@@ -101,20 +101,7 @@ public class ProcessadorDocumentoService {
 	}
 
 	public List<PaginaPdf> listarPaginas(UUID documentoId, UUID execucaoId) {
-		boolean pertenceAoDocumento = jdbc.sql("""
-				SELECT EXISTS (
-				    SELECT 1 FROM execucao_processamento
-				    WHERE id = :execucao AND versao_documento_id = :documento
-				)
-				""")
-			.param("execucao", execucaoId)
-			.param("documento", documentoId)
-			.query(Boolean.class)
-			.single();
-
-		if (!pertenceAoDocumento) {
-			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Execução não encontrada para este documento.");
-		}
+		exigirExecucaoDoDocumento(documentoId, execucaoId);
 
 		return jdbc.sql("""
 				SELECT numero, texto
@@ -128,17 +115,7 @@ public class ProcessadorDocumentoService {
 	}
 
 	public List<MedidaComEvidencia> listarMedidas(UUID documentoId, UUID execucaoId) {
-		boolean pertenceAoDocumento = jdbc.sql("""
-				SELECT EXISTS (
-				    SELECT 1 FROM execucao_processamento
-				    WHERE id = :execucao AND versao_documento_id = :documento
-				)
-				""")
-			.param("execucao", execucaoId).param("documento", documentoId)
-			.query(Boolean.class).single();
-		if (!pertenceAoDocumento) {
-			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Execução não encontrada para este documento.");
-		}
+		exigirExecucaoDoDocumento(documentoId, execucaoId);
 
 		return jdbc.sql("""
 				SELECT m.id AS medida_id, x.objeto, m.metrica, m.valor_original,
@@ -220,6 +197,20 @@ public class ProcessadorDocumentoService {
 				.query(UUID.class).single();
 		}
 		return new MedidaRegistrada(estudoId, experimentoId, medidaId, evidenciaId, medida.estado());
+	}
+
+	private void exigirExecucaoDoDocumento(UUID documentoId, UUID execucaoId) {
+		boolean pertence = jdbc.sql("""
+				SELECT EXISTS (
+				    SELECT 1 FROM execucao_processamento
+				    WHERE id = :execucao AND versao_documento_id = :documento
+				)
+				""")
+			.param("execucao", execucaoId).param("documento", documentoId)
+			.query(Boolean.class).single();
+		if (!pertence) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Execução não encontrada para este documento.");
+		}
 	}
 
 	private boolean vazio(String valor) {
