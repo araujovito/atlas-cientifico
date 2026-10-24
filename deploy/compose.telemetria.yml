@@ -1,0 +1,24 @@
+# Opt-in, coletor local apenas. Não altera o destino padrão (exportação desligada).
+services:
+  api:
+    environment:
+      MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED: "true"
+      MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+  worker:
+    environment:
+      MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED: "true"
+      MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+  jaeger:
+    image: jaegertracing/all-in-one:1.76.0@sha256:ab6f1a1f0fb49ea08bcd19f6b84f6081d0d44b364b6de148e1798eb5816bacac
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      MEMORY_MAX_TRACES: "1000"
+    ports: ["127.0.0.1:${ATLAS_JAEGER_PORT:-16686}:16686"]
+    mem_limit: 512m
+    cpus: 0.5
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "2"}

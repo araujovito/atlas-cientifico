@@ -2,6 +2,8 @@ package dev.atlas.documentos;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,9 +18,10 @@ public class FilaExtracaoWorker {
     private final ProcessadorDocumentoService processador;
     private final boolean ativa;
     private final MeterRegistry metrics;
+    private final ObservationRegistry observations;
     public FilaExtracaoWorker(FilaExtracaoService fila, ProcessadorDocumentoService processador,
-            @Value("${atlas.fila.ativa:true}") boolean ativa, MeterRegistry metrics) {
-        this.fila=fila; this.processador=processador; this.ativa=ativa; this.metrics=metrics;
+            @Value("${atlas.fila.ativa:true}") boolean ativa, MeterRegistry metrics, ObservationRegistry observations) {
+        this.fila=fila; this.processador=processador; this.ativa=ativa; this.metrics=metrics; this.observations=observations;
     }
 
     @Scheduled(fixedDelayString="${atlas.fila.intervalo-ms:1000}",initialDelayString="${atlas.fila.inicio-ms:1000}")
@@ -29,6 +32,7 @@ public class FilaExtracaoWorker {
         if(proxima.isEmpty()) return false;
         var reserva=proxima.get();
         var tempo=Timer.start(metrics);
+        var observation=Observation.start("atlas.pdf.execucao",observations);
         String resultado="erro_temporario";
         try {
             resultado=fila.concluir(reserva,processador.processar(reserva.tarefa().documentoId())) ? "concluido" : "reserva_perdida";
@@ -44,6 +48,7 @@ public class FilaExtracaoWorker {
         } finally {
             // Sem IDs, textos ou DOIs nos rótulos: cardinalidade limitada por construção.
             tempo.stop(Timer.builder("atlas.pdf.tentativa").tag("resultado",resultado).register(metrics));
+            observation.lowCardinalityKeyValue("resultado",resultado).stop();
         }
         return true;
     }

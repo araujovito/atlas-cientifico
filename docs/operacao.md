@@ -45,3 +45,25 @@ Cria projeto Compose temporário, senhas aleatórias e PDF inteiramente sintéti
 Uma execução em 2026-10-24 passou: PDF 846 bytes; oito uploads do mesmo conteúdo resultaram em um documento, uma tarefa e uma execução reutilizada. AMD Ryzen 7 7735HS, 16 CPUs lógicas, memória reportada 14.320.287.744 bytes, Node v20.19.2. API e worker limitados a 1 CPU/1 GiB cada, banco 512 MiB. Imagem da aplicação `sha256:237d81aaaa2f628d63bcdca46a488cec1b10b03d159f5419f3b364f1028477f2` (antes da adição de OpenTelemetry).
 
 Tempos observados de upload: mínimo 307,08 ms, mediana 317,88 ms, máximo 343,77 ms. Retomada até conclusão: 16.494,81 ms, **incluindo partida da JVM e polling**, não somente extração. É uma amostra fria de um PDF mínimo repetido, não p95, capacidade, teste de carga representativo ou avaliação científica. Não extrapolar para artigos reais. Interrupção após persistir e antes de confirmar é coberta separadamente em `FilaRecuperacaoRealTest`; o smoke não mata o parser durante a leitura.
+
+## OpenTelemetry local opcional
+
+O starter oficial é o do Spring Boot 4.1.1. Exportação de traços, métricas e logs está explicitamente desligada por padrão. O worker produz uma observação `atlas.pdf.execucao` por tentativa com resultado de cardinalidade fixa, sem texto/DOI/segredo nos atributos adicionados pelo Atlas. Não há propagação de contexto de trace através da fila persistente nesta versão; o histórico durável da tarefa e o span de tentativa são mecanismos distintos.
+
+Para coletar traços no Jaeger local (sem fornecedor externo):
+
+```bash
+docker compose -p atlas-local -f deploy/compose.yml -f deploy/compose.telemetria.yml up -d --wait
+```
+
+Interface em `http://127.0.0.1:16686/`. O override habilita amostragem de 100% para demonstração, não como decisão de produção. Jaeger mantém no máximo mil traços em memória; não há retenção persistente nem painel Grafana. A imagem está fixada por digest, não foi feita auditoria de vulnerabilidades. Métricas continuam nos registries de cada processo, sem exportação OTLP de métricas/logs. Para mudar isso seria preciso configurar e testar um coletor que os receba.
+
+Teste reproduzível incluindo recepção real do span do trabalhador:
+
+```bash
+ATLAS_SMOKE_TELEMETRIA=1 node deploy/smoke.mjs
+```
+
+Segunda execução em 2026-10-24 passou com imagem da aplicação `sha256:b0d49f0c347fe844854e7c85744164911f209dd4834fcc73dc5af9eb88a4d5ba`: encontrou `atlas.pdf.execucao` na API do Jaeger e não encontrou as senhas aleatórias nem o trecho sintético nos traços consultados. Não é prova geral de ausência de vazamento. Uploads: mínimo 457,34 ms, mediana 467,41 ms, máximo 482,48 ms; conclusão após retomada 15.126,57 ms (sem o tempo adicional de esperar exportação OTLP). Mesma máquina e fixture; cenário diferente da primeira amostra, **não comparar esses números como benchmark de overhead**. O projeto temporário, incluindo Jaeger e volumes sintéticos, foi removido.
+
+Referência: [tracing no Spring Boot](https://docs.spring.io/spring-boot/4.1-SNAPSHOT/reference/actuator/tracing.html). Os nomes das propriedades usados também foram conferidos no metadata dos JARs 4.1.1 instalados, não apenas na documentação móvel.
