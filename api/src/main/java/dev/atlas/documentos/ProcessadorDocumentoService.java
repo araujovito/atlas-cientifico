@@ -77,6 +77,8 @@ public class ProcessadorDocumentoService {
 			log.warn("Documento {} protegido por senha", documentoId);
 			throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
 				"O PDF está protegido por senha; envie uma versão sem proteção.", e);
+		} catch (java.io.InterruptedIOException e) {
+			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Processamento interrompido; a tarefa pode ser retomada.",e);
 		} catch (IOException e) {
 			log.warn("Falha ao extrair texto do documento {}", documentoId, e);
 			throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Não foi possível extrair texto deste PDF.", e);
