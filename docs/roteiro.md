@@ -30,7 +30,7 @@ Objetivo: localizar obras, preservar identificadores e evitar duplicação ao mo
 | 1 | Consulta OpenAlex por DOI normalizado | API retorna título, autores, ano e identificadores; testes HTTP locais cobrem erros, limite de chamadas e prazo do corpo completo. Dois DOIs dos candidatos consultados também pela API local contra a fonte real | testado |
 | 2 | Busca por DOI na tela mínima | Chromium mostra metadados externos como texto e oculta o resultado anterior em caso de falha; fonte e links são visíveis | testado |
 | 3 | Persistir obra e identificadores com deduplicação | DOI/OpenAlex equivalentes não duplicam; conflitos retornam 409; snapshots preservados; associação explícita de PDF | testado — `f4d7a11`, testes catálogo/DB |
-| 4 | Busca por tema/autor/ano e paginação | Resultados limitados; autor selecionado por ID; conteúdo externo não vira HTML | testado — `a4cd344`, `99c3818`, HTTP local e Chromium |
+| 4 | Busca por tema/autor/ano e paginação | Resultados limitados; autor selecionado por ID; conteúdo externo não vira HTML | testado — `a4cd344`, `99c3818`, HTTP local e API. A tela de busca por tema/autor/ano e a paginação não têm teste de navegador (verificado na revisão de 2026-10-24) |
 | 5 | Coleções do operador | Associação idempotente e persistente; sem contas individuais | testado — `f4d7a11`, `99c3818` |
 
 Evidência dos passos 1 e 2: `5693848`, `9ff978b` e [contrato/verificações do OpenAlex](openalex.md). Deduplicação entre fontes foi testada com fixtures controladas; somente OpenAlex tem conector real. Isso não demonstra uma segunda integração externa.
@@ -53,7 +53,7 @@ Evidência dos passos 1 e 2: `5693848`, `9ff978b` e [contrato/verificações do 
 | Normalização decimal preservando originais | testado — `4a6b2e1`, conversões limitadas e explícitas, sem float no JSON |
 | Regras conservadoras de comparabilidade | testado — mesmas condições completas e unidade canônica; sem veredito científico |
 | Revisão append-only com versão otimista | testado — banco recusa UPDATE/DELETE; conflito 409; origem permanece intacta |
-| Matriz e histórico navegáveis | testado — `546413a`, Chromium; revisor é declarado, não autenticado |
+| Matriz e histórico navegáveis | testado — `546413a`, API/DB e atualização da comparação no Chromium; o histórico de revisões na tela não é verificado pelo navegador. Revisor é declarado, não autenticado |
 
 ## Entrega 5 — rede de citações
 
@@ -78,7 +78,7 @@ Evidência dos passos 1 e 2: `5693848`, `9ff978b` e [contrato/verificações do 
 
 | Passo | Estado e evidência |
 |---|---|
-| Avaliador offline de campos e evidência | testado — `881211d`, quatro testes e CLI com fixture sintética negativa |
+| Avaliador offline de campos e evidência | testado — `881211d`, quatro testes unitários do avaliador (mais um da ausência, `505d037`). A CLI e a fixture sintética existem, mas nenhum teste as executa |
 | Método para referência independente | documentado em `avaliacao.md`; conjunto real ainda pendente |
 | Concorrência e tempos operacionais sintéticos | medido em uma execução de smoke — `operacao.md`, oito uploads, método/hardware/limites registrados |
 | Carga representativa e precisão científica | pendentes; não extrapolar a amostra sintética, não publicar nota de IA como validação |

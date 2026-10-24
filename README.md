@@ -36,7 +36,7 @@ PLAYWRIGHT_SKIP_BROWSER_GC=1 ./mvnw exec:java -Dexec.mainClass=com.microsoft.pla
 No GitHub Actions, o workflow instala Chromium e suas dependências antes de executar a mesma suíte em pushes e pull requests para `main`.
 Os testes do conector usam uma fonte HTTP local; os testes da busca no navegador usam respostas controladas da API. A suíte não depende da disponibilidade do OpenAlex público.
 
-Última execução local em 2026-10-24: **117 testes, sem falhas, erros ou testes ignorados**. Smoke Docker separado também passou, incluindo span real recebido no Jaeger. CI remoto destes commits ainda aguarda revisão/push.
+Última execução local em 2026-10-24: **117 testes, sem falhas, erros ou testes ignorados**. Smoke Docker separado também passou, incluindo span real recebido no Jaeger. O CI do GitHub também passou com 117 testes, 0 falhas, 0 erros e 0 ignorados no push `efff491` (execução 40116275657); depois dele entraram correções com testes próprios.
 
 ## Executar a API
 
