@@ -7,38 +7,33 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Exige o cabeçalho X-Atlas-Chave em /api/** quando atlas.seguranca.chave-api está definida.
- *
- * É uma chave compartilhada, não autenticação de usuários: quem tem a chave acessa todos os
- * documentos. Serve para não deixar a API aberta enquanto não há contas. Sem a propriedade o
- * filtro não existe (desenvolvimento local).
+ * Segredo adicional somente para métricas globais de operação. Não autentica pessoas e não
+ * substitui a sessão, inclusive nesta rota. Sem configuração, métricas globais ficam recusadas.
  */
 @Component
-@ConditionalOnExpression("!'${atlas.seguranca.chave-api:}'.isBlank()")
 public class FiltroChaveApi extends OncePerRequestFilter {
 
 	static final String CABECALHO = "X-Atlas-Chave";
 	private final byte[] esperada;
 
-	public FiltroChaveApi(@org.springframework.beans.factory.annotation.Value("${atlas.seguranca.chave-api}") String chave) {
-		this.esperada = sha256(chave);
+	public FiltroChaveApi(@org.springframework.beans.factory.annotation.Value("${atlas.seguranca.chave-api:}") String chave) {
+		this.esperada = chave.isBlank() ? null : sha256(chave);
 	}
 
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) {
-		return !normalizar(request.getRequestURI()).startsWith("/api/");
+		return !normalizar(request.getRequestURI()).equals("/api/operacao/metricas");
 	}
 
 	/**
 	 * Reduz o URI bruto à forma com que o Spring MVC o enxerga: sem parâmetros de caminho
 	 * ("/api;x=1/..." chega ao controlador como "/api/...") e sem barras repetidas.
 	 */
-	static String normalizar(String uri) {
+	public static String normalizar(String uri) {
 		String caminho = uri.replaceAll(";[^/]*", "");
 		try {
 			caminho = java.net.URLDecoder.decode(caminho.replace("+", "%2B"), StandardCharsets.UTF_8);
@@ -53,7 +48,7 @@ public class FiltroChaveApi extends OncePerRequestFilter {
 			throws ServletException, IOException {
 		String enviada = request.getHeader(CABECALHO);
 		// Compara os hashes em tempo constante: o tamanho e o prefixo da chave não vazam pelo tempo.
-		if (enviada == null || !MessageDigest.isEqual(esperada, sha256(enviada))) {
+		if (esperada == null || enviada == null || !MessageDigest.isEqual(esperada, sha256(enviada))) {
 			response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 			response.setContentType("application/problem+json");
 			response.setCharacterEncoding("UTF-8");
