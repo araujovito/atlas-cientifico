@@ -18,6 +18,8 @@ import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class CatalogoService {
+    /** Quantos snapshots de metadados por obra aparecem nas respostas. */
+    static final int METADADOS_MAXIMOS = 20;
     private final JdbcClient jdbc;
     private final TransactionTemplate transacoes;
     private final ObjectMapper mapper;
@@ -104,7 +106,15 @@ public class CatalogoService {
                         new ObraCatalogada.Identificador(rs.getString("tipo"), rs.getString("valor"))))
                 .list().forEach(e -> identificadores.computeIfAbsent(e.getKey(), k -> new ArrayList<>()).add(e.getValue()));
         var registros = new java.util.HashMap<UUID, List<tools.jackson.databind.JsonNode>>();
-        jdbc.sql("SELECT obra_id,registro::text AS registro FROM obra_metadados WHERE obra_id IN (:ids) ORDER BY coletado_em,id").param("ids", ids)
+        // Só os registros mais recentes de cada obra: cada reimportação com conteúdo diferente cria um snapshot,
+        // e devolvê-los todos faria a resposta crescer sem limite. Os anteriores continuam no banco.
+        jdbc.sql("""
+                SELECT obra_id,registro FROM (
+                    SELECT obra_id,registro::text AS registro,coletado_em,id,
+                           row_number() OVER (PARTITION BY obra_id ORDER BY coletado_em DESC,id DESC) AS posicao
+                    FROM obra_metadados WHERE obra_id IN (:ids)) recentes
+                WHERE posicao <= :maximo ORDER BY coletado_em,id
+                """).param("ids", ids).param("maximo", METADADOS_MAXIMOS)
                 .query((rs, row) -> java.util.Map.entry(rs.getObject("obra_id", UUID.class), mapper.readTree(rs.getString("registro"))))
                 .list().forEach(e -> registros.computeIfAbsent(e.getKey(), k -> new ArrayList<>()).add(e.getValue()));
         return ids.stream().map(bases::get).filter(java.util.Objects::nonNull)

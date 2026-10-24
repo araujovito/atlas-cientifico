@@ -70,6 +70,23 @@ class CatalogoPersistenciaTest {
     }
 
     @Test
+    void respostaTrazSoOsVinteSnapshotsMaisRecentesEOBancoGuardaTodos() {
+        var obra = catalogo.registrar(candidata());
+        for (int i = 0; i < 24; i++) {
+            jdbc.sql("""
+                    INSERT INTO obra_metadados(obra_id,fonte,registro,sha256,coletado_em)
+                    VALUES (:o,'OPENALEX',CAST(:r AS jsonb),:h,now() + make_interval(secs => :s))
+                    """).param("o", obra.id()).param("r", "{\"n\":" + i + "}")
+                    .param("h", String.format("%064x", i)).param("s", i + 1).update();
+        }
+        var lidos = catalogo.obter(obra.id()).metadados();
+        assertThat(lidos).hasSize(20);
+        assertThat(lidos.getLast().path("n").asInt()).isEqualTo(23);
+        assertThat(lidos.getFirst().path("n").asInt()).isEqualTo(4);
+        assertThat(jdbc.sql("SELECT count(*) FROM obra_metadados WHERE obra_id=:o").param("o", obra.id()).query(Long.class).single()).isEqualTo(25);
+    }
+
+    @Test
     void importacoesConcorrentesCriamUmaObraEUmSnapshot() throws Exception {
         var recebida = candidata();
         var iniciar = new CountDownLatch(1);
