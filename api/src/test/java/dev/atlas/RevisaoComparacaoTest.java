@@ -71,6 +71,56 @@ class RevisaoComparacaoTest {
         assertThat(resultado.linhas().getFirst().registro().versao()).isEqualTo(1);
     }
 
+    @Test void segundaRevisaoEncadeiaComAPrimeiraEPreservaOffsets() {
+        UUID medida=registrar("98.2","mAh/g",CONDICOES);
+        var v1=new MedidaCandidata("NCM622","capacidade","99.3","mAh/g","REPORTADO",1,"Outro resultado 99.3 mAh/g.",CONDICOES);
+        var primeira=revisoes.revisar(medida,new RevisaoService.Pedido("Pessoa","Primeira",0,v1));
+        var v2=new MedidaCandidata("NCM622","capacidade","98.2","mAh/g","REPORTADO",1,"Capacidade 98.2 mAh/g.",CONDICOES);
+        var segunda=revisoes.revisar(medida,new RevisaoService.Pedido("Outra pessoa","Voltou ao original",1,v2));
+        assertThat(segunda.versao()).isEqualTo(2);
+        var historico=revisoes.historico(medida);
+        assertThat(historico).extracting(RevisaoService.Revisao::versao).containsExactly(1,2);
+        assertThat(historico.get(1).anterior()).isEqualTo(historico.get(0).correcao());
+        var evidencia=historico.get(1).correcao().evidencias().getFirst();
+        assertThat(evidencia.inicioCaractere()).isEqualTo(0);
+        assertThat(evidencia.fimCaractere()).isEqualTo("Capacidade 98.2 mAh/g.".length());
+        assertThat(primeira.atual().medida().valorOriginal()).isEqualTo("99.3");
+    }
+
+    @Test void correcaoParaAusenteNaoCarregaEvidencia() {
+        UUID medida=registrar("98.2","mAh/g",CONDICOES);
+        var ausente=new MedidaCandidata("NCM622","capacidade",null,null,"AUSENTE",null,null,CONDICOES);
+        var resultado=revisoes.revisar(medida,new RevisaoService.Pedido("Pessoa","Valor não consta no artigo",0,ausente));
+        assertThat(resultado.atual().evidencias()).isEmpty();
+        assertThat(resultado.atual().medida().estado()).isEqualTo("AUSENTE");
+        assertThat(resultado.original().evidencias()).isNotEmpty();
+    }
+
+    @Test void medidaInexistenteDevolve404() {
+        var qualquer=new MedidaCandidata("NCM622","capacidade","1","mAh/g","REPORTADO",1,"Capacidade 1 mAh/g.",CONDICOES);
+        assertThatThrownBy(() -> revisoes.revisar(UUID.randomUUID(),new RevisaoService.Pedido("Pessoa","Inexistente",0,qualquer)))
+                .isInstanceOfSatisfying(ResponseStatusException.class,e -> assertThat(e.getStatusCode().value()).isEqualTo(404));
+        assertThatThrownBy(() -> revisoes.obter(UUID.randomUUID())).isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test void revisoesConcorrentesDaMesmaVersaoGravamExatamenteUma() throws Exception {
+        UUID medida=registrar("98.2","mAh/g",CONDICOES);
+        var correcao=new MedidaCandidata("NCM622","capacidade","99.3","mAh/g","REPORTADO",1,"Outro resultado 99.3 mAh/g.",CONDICOES);
+        var inicio=new java.util.concurrent.CountDownLatch(1);
+        try(var pool=java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var tarefas=List.of("A","B").stream().map(autor -> pool.submit(() -> {
+                inicio.await();
+                try { revisoes.revisar(medida,new RevisaoService.Pedido(autor,"Concorrente",0,correcao)); return 200; }
+                catch(ResponseStatusException e) { return e.getStatusCode().value(); }
+            })).toList();
+            inicio.countDown();
+            var codigos=new java.util.ArrayList<Integer>();
+            for(var t:tarefas) codigos.add(t.get(10,java.util.concurrent.TimeUnit.SECONDS));
+            assertThat(codigos).containsExactlyInAnyOrder(200,409);
+        }
+        assertThat(revisoes.historico(medida)).hasSize(1);
+    }
+
     private UUID registrar(String valor,String unidade,Map<String,Object> condicoes) {
         UUID doc=jdbc.sql("""
                 INSERT INTO versao_documento(origem,sha256,tamanho_bytes,chave_armazenamento,autorizacao_declarada,autorizacao_confirmada_em)

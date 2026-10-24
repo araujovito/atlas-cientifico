@@ -36,6 +36,27 @@ class AvaliadorCamposTest {
         assertThat(omitido.precisaoExata()).isNull();
         assertThatThrownBy(()->new Campo(a.chave(),"AUSENTE","123",null,null,null,Map.of())).isInstanceOf(IllegalArgumentException.class);
     }
+    @Test void divergenciaIsoladaDeEstadoUnidadeOuCondicoesImpedeOAcertoCompleto() {
+        var a=campo("A","125");
+        var estado=new Campo(a.chave(),"INFERIDO",a.valor(),a.unidade(),a.pagina(),a.trecho(),a.condicoes());
+        var unidade=new Campo(a.chave(),a.estado(),a.valor(),"Ah/g",a.pagina(),a.trecho(),a.condicoes());
+        var condicao=new Campo(a.chave(),a.estado(),a.valor(),a.unidade(),a.pagina(),a.trecho(),Map.of("temperatura","60 C"));
+        var e=avaliador.avaliar(List.of(a),List.of(estado));
+        assertThat(e.estadosCorretos()).isZero(); assertThat(e.valoresCorretos()).isEqualTo(1); assertThat(e.completosCorretos()).isZero();
+        var u=avaliador.avaliar(List.of(a),List.of(unidade));
+        assertThat(u.unidadesCorretas()).isZero(); assertThat(u.valoresCorretos()).isEqualTo(1); assertThat(u.completosCorretos()).isZero();
+        var c=avaliador.avaliar(List.of(a),List.of(condicao));
+        assertThat(c.condicoesCorretas()).isZero(); assertThat(c.valoresCorretos()).isEqualTo(1); assertThat(c.completosCorretos()).isZero();
+    }
+    @Test void referenciaVaziaNaoTemCoberturaELimiteEChaveSaoValidados() {
+        var vazio=avaliador.avaliar(List.of(),List.of(campo("A","125")));
+        assertThat(vazio.coberturaExata()).isNull(); assertThat(vazio.extras()).isEqualTo(1); assertThat(vazio.precisaoExata()).isZero();
+        var muitos=new ArrayList<Campo>();
+        for(int i=0;i<10001;i++) muitos.add(campo("E"+i,"1"));
+        assertThatThrownBy(()->avaliador.avaliar(muitos,List.of())).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(()->new Chave("curto","A","m")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(()->new Chave("a".repeat(64)," ","m")).isInstanceOf(IllegalArgumentException.class);
+    }
     @Test void duplicataNaoMelhoraMetricasENumerosOriginaisNaoSaoNormalizados() {
         var a=campo("A","125");
         assertThatThrownBy(()->avaliador.avaliar(List.of(a),List.of(a,a))).isInstanceOf(IllegalArgumentException.class);
