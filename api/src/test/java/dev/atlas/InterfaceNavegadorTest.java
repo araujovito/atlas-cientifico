@@ -243,6 +243,50 @@ class InterfaceNavegadorTest {
 		assertThat(pagina.locator("#doi-button")).isEnabled();
 	}
 
+	@Test
+	void buscaPorAutorTemaEAnoPaginaEDescartaResultadoAntigoAoMudarDePagina() {
+		org.mockito.Mockito.when(fonte.buscarAutores("Silva")).thenReturn(java.util.List.of(
+				new OpenAlexClient.AutorEncontrado("https://openalex.org/A1", "Ana Silva"),
+				new OpenAlexClient.AutorEncontrado("https://openalex.org/A2", "Ana Silva")));
+		org.mockito.Mockito.when(fonte.buscar("lithium", "https://openalex.org/A2", 2022, 1, 10))
+				.thenReturn(new OpenAlexClient.PaginaObras(12, 1, 10, obrasDaPagina("p1", 10)));
+		org.mockito.Mockito.when(fonte.buscar("lithium", "https://openalex.org/A2", 2022, 2, 10))
+				.thenReturn(new OpenAlexClient.PaginaObras(12, 2, 10, obrasDaPagina("p2", 2)));
+
+		pagina.locator("#author-name").fill("Silva");
+		pagina.locator("#author-form button").click();
+		assertThat(pagina.locator("#author-filter option")).hasCount(3);
+		pagina.locator("#author-filter").selectOption("https://openalex.org/A2");
+		pagina.locator("#theme").fill("lithium");
+		pagina.locator("#search-year").fill("2022");
+		pagina.locator("#discovery-form button").click();
+
+		assertThat(pagina.locator("#discovery-page")).hasText("Página 1 · 12 resultado(s)");
+		assertThat(pagina.locator("#discovery-results article")).hasCount(10);
+		assertThat(pagina.locator("#search-previous")).isDisabled();
+		assertThat(pagina.locator("#search-next")).isEnabled();
+
+		pagina.locator("#search-next").click();
+		assertThat(pagina.locator("#discovery-page")).hasText("Página 2 · 12 resultado(s)");
+		assertThat(pagina.locator("#discovery-results article")).hasCount(2);
+		assertThat(pagina.locator("#discovery-results")).containsText("Obra p2-0");
+		assertThat(pagina.locator("#discovery-results")).not().containsText("Obra p1-0");
+		assertThat(pagina.locator("#search-next")).isDisabled();
+
+		pagina.locator("#search-previous").click();
+		assertThat(pagina.locator("#discovery-page")).hasText("Página 1 · 12 resultado(s)");
+		assertThat(pagina.locator("#discovery-results article")).hasCount(10);
+	}
+
+	private static java.util.List<ObraEncontrada> obrasDaPagina(String prefixo, int quantidade) {
+		var obras = new java.util.ArrayList<ObraEncontrada>();
+		for (int i = 0; i < quantidade; i++) {
+			obras.add(new ObraEncontrada("OPENALEX", "https://openalex.org/W" + (prefixo.equals("p1") ? 100 : 200) + i,
+					"10.1234/" + prefixo + "-" + i, "Obra " + prefixo + "-" + i, 2022, java.util.List.of("Ana Silva")));
+		}
+		return obras;
+	}
+
 	private static byte[] pdfComTexto(String... textos) throws Exception {
 		try (PDDocument documento = new PDDocument(); ByteArrayOutputStream saida = new ByteArrayOutputStream()) {
 			for (String texto : textos) {
