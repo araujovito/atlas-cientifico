@@ -9,6 +9,7 @@ import dev.atlas.documentos.ProcessamentoProperties;
 import dev.atlas.documentos.PdfWorkerMain;
 
 @SpringBootApplication
+@org.springframework.scheduling.annotation.EnableScheduling
 @EnableConfigurationProperties({UploadProperties.class, OpenAlexProperties.class, ProcessamentoProperties.class})
 public class AtlasApplication {
 
