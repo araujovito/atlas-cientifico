@@ -47,8 +47,8 @@ public class ColecaoController {
     public List<ObraCatalogada> obras(@PathVariable UUID id, @RequestParam(defaultValue="50") int limite,
             @RequestParam(defaultValue="0") int deslocamento) {
         exigir(id); CatalogoService.validarPagina(limite,deslocamento);
-        return jdbc.sql("SELECT obra_id FROM colecao_obra WHERE colecao_id=:id ORDER BY adicionada_em,obra_id LIMIT :n OFFSET :o")
-                .param("id",id).param("n",limite).param("o",deslocamento).query(UUID.class).list().stream().map(catalogo::obter).toList();
+        return catalogo.obter(jdbc.sql("SELECT obra_id FROM colecao_obra WHERE colecao_id=:id ORDER BY adicionada_em,obra_id LIMIT :n OFFSET :o")
+                .param("id",id).param("n",limite).param("o",deslocamento).query(UUID.class).list());
     }
     private void exigir(UUID id) {
         if (!jdbc.sql("SELECT EXISTS(SELECT 1 FROM colecao WHERE id=:id)").param("id",id).query(Boolean.class).single())

@@ -48,7 +48,7 @@ public class CitacaoService {
 
     public Grafo obter(UUID obra,int limite,int deslocamento) {
         CatalogoService.validarPagina(limite,deslocamento);
-        var registro=catalogo.obter(obra);
+        var registro=catalogo.resumo(obra);
         var snapshot=jdbc.sql("SELECT * FROM citacao_snapshot WHERE obra_id=:id ORDER BY conferido_em DESC,id DESC LIMIT 1").param("id",obra)
                 .query((rs,row) -> new Snapshot(rs.getString("origem_id"),mapper.readValue(rs.getString("referencias"),new TypeReference<List<String>>(){}),
                         rs.getTimestamp("coletado_em").toInstant(),rs.getTimestamp("conferido_em").toInstant()))

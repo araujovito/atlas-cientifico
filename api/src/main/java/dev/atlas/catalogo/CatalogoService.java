@@ -85,20 +85,44 @@ public class CatalogoService {
     }
 
     public ObraCatalogada obter(UUID id) {
-        var base = jdbc.sql("SELECT titulo,ano FROM obra WHERE id=:id").param("id", id)
+        var obras = obter(List.of(id));
+        if (obras.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Obra não encontrada.");
+        return obras.getFirst();
+    }
+
+    /** Três consultas para qualquer quantidade de obras; obras inexistentes são omitidas, a ordem é a recebida. */
+    List<ObraCatalogada> obter(List<UUID> ids) {
+        if (ids.isEmpty()) return List.of();
+        var bases = new java.util.HashMap<UUID, ObraCatalogada>();
+        jdbc.sql("SELECT id,titulo,ano FROM obra WHERE id IN (:ids)").param("ids", ids)
+                .query((rs, row) -> new ObraCatalogada(rs.getObject("id", UUID.class), rs.getString("titulo"),
+                        rs.getObject("ano", Integer.class), List.of(), List.of()))
+                .list().forEach(o -> bases.put(o.id(), o));
+        var identificadores = new java.util.HashMap<UUID, List<ObraCatalogada.Identificador>>();
+        jdbc.sql("SELECT obra_id,tipo,valor FROM identificador WHERE obra_id IN (:ids) ORDER BY tipo,valor").param("ids", ids)
+                .query((rs, row) -> java.util.Map.entry(rs.getObject("obra_id", UUID.class),
+                        new ObraCatalogada.Identificador(rs.getString("tipo"), rs.getString("valor"))))
+                .list().forEach(e -> identificadores.computeIfAbsent(e.getKey(), k -> new ArrayList<>()).add(e.getValue()));
+        var registros = new java.util.HashMap<UUID, List<tools.jackson.databind.JsonNode>>();
+        jdbc.sql("SELECT obra_id,registro::text AS registro FROM obra_metadados WHERE obra_id IN (:ids) ORDER BY coletado_em,id").param("ids", ids)
+                .query((rs, row) -> java.util.Map.entry(rs.getObject("obra_id", UUID.class), mapper.readTree(rs.getString("registro"))))
+                .list().forEach(e -> registros.computeIfAbsent(e.getKey(), k -> new ArrayList<>()).add(e.getValue()));
+        return ids.stream().map(bases::get).filter(java.util.Objects::nonNull)
+                .map(b -> new ObraCatalogada(b.id(), b.titulo(), b.ano(),
+                        identificadores.getOrDefault(b.id(), List.of()), registros.getOrDefault(b.id(), List.of()))).toList();
+    }
+
+    /** Título e ano sem carregar os metadados completos. */
+    public ObraCatalogada resumo(UUID id) {
+        return jdbc.sql("SELECT titulo,ano FROM obra WHERE id=:id").param("id", id)
                 .query((rs, row) -> new ObraCatalogada(id, rs.getString("titulo"), rs.getObject("ano", Integer.class), List.of(), List.of()))
                 .optional().orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Obra não encontrada."));
-        var ids = jdbc.sql("SELECT tipo,valor FROM identificador WHERE obra_id=:id ORDER BY tipo,valor").param("id", id)
-                .query((rs, row) -> new ObraCatalogada.Identificador(rs.getString("tipo"), rs.getString("valor"))).list();
-        var registros = jdbc.sql("SELECT registro::text FROM obra_metadados WHERE obra_id=:id ORDER BY coletado_em,id")
-                .param("id", id).query(String.class).list().stream().map(mapper::readTree).toList();
-        return new ObraCatalogada(id, base.titulo(), base.ano(), ids, registros);
     }
 
     public List<ObraCatalogada> listar(int limite, int deslocamento) {
         validarPagina(limite, deslocamento);
-        return jdbc.sql("SELECT id FROM obra ORDER BY criado_em,id LIMIT :limite OFFSET :offset")
-                .param("limite", limite).param("offset", deslocamento).query(UUID.class).list().stream().map(this::obter).toList();
+        return obter(jdbc.sql("SELECT id FROM obra ORDER BY criado_em,id LIMIT :limite OFFSET :offset")
+                .param("limite", limite).param("offset", deslocamento).query(UUID.class).list());
     }
 
     public void associarDocumento(UUID documento, UUID obra) {
