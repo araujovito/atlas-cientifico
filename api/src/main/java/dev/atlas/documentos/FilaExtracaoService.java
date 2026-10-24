@@ -73,13 +73,16 @@ public class FilaExtracaoService {
         });
     }
 
+    // Concluir e falhar exigem só o token: ele muda quando outro worker reserva a tarefa e é apagado quando as
+    // tentativas se esgotam. Reserva vencida sem novo dono ainda é do mesmo trabalhador, e descartar o resultado
+    // deixaria a execução gravada sem tarefa que a aponte.
     public boolean concluir(Reserva reserva, ResultadoProcessamentoDocumento resultado) {
         if (!resultado.documentoId().equals(reserva.tarefa().documentoId())
                 || !List.of("CONCLUIDO","PRECISA_OCR").contains(resultado.estado())) throw new IllegalArgumentException("Resultado incompatível com a tarefa.");
         return tx.execute(s -> {
             int n=jdbc.sql("""
                     UPDATE tarefa_extracao SET estado=:estado,execucao_id=:e,token=NULL,reservado_ate=NULL,finalizado_em=now(),detalhe=NULL
-                    WHERE id=:id AND token=:token AND estado='EM_ANDAMENTO' AND reservado_ate>now()
+                    WHERE id=:id AND token=:token AND estado='EM_ANDAMENTO'
                     """).param("estado",resultado.estado()).param("e",resultado.execucaoId()).param("id",reserva.tarefa().id()).param("token",reserva.token()).update();
             if (n==1) evento(reserva.tarefa().id(),resultado.estado(),null);
             return n==1;
@@ -94,7 +97,7 @@ public class FilaExtracaoService {
                     UPDATE tarefa_extracao SET estado=:estado,detalhe=:detalhe,token=NULL,reservado_ate=NULL,
                         finalizado_em=CASE WHEN :fim THEN now() ELSE NULL END,
                         disponivel_em=now()+make_interval(secs=>:atraso)
-                    WHERE id=:id AND token=:token AND estado='EM_ANDAMENTO' AND reservado_ate>now()
+                    WHERE id=:id AND token=:token AND estado='EM_ANDAMENTO'
                     """).param("estado",estado).param("detalhe",detalhe).param("fim",acabou)
                     .param("atraso",1 << reserva.tarefa().tentativas()).param("id",reserva.tarefa().id()).param("token",reserva.token()).update();
             if(n==1) evento(reserva.tarefa().id(),estado,detalhe);

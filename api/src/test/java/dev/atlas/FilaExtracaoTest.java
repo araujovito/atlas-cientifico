@@ -63,6 +63,13 @@ class FilaExtracaoTest {
         assertThat(fila.devolver(reserva)).as("token já liberado").isFalse();
     }
 
+    @Test void reservaVencidaSemNovoDonoAindaConfirmaOResultado() {
+        UUID doc=documento(); var tarefa=fila.agendar(doc); var reserva=fila.reservar().orElseThrow();
+        expirar(tarefa.id());
+        assertThat(fila.concluir(reserva,resultado(doc))).isTrue();
+        assertThat(fila.obter(tarefa.id()).estado()).isEqualTo("CONCLUIDO");
+    }
+
     @Test void reservaExpiradaPodeSerRetomadaMasTokenAntigoNaoConfirma() {
         UUID doc=documento(); var tarefa=fila.agendar(doc); var antiga=fila.reservar().orElseThrow();
         expirar(tarefa.id()); var nova=fila.reservar().orElseThrow();
