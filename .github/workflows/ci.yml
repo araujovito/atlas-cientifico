@@ -111,6 +111,12 @@ jobs:
           chmod +x mvnw
           ./mvnw --batch-mode --no-transfer-progress exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install --with-deps ${{ matrix.motor }}"
 
+      - name: Diagnóstico do navegador (${{ matrix.motor }})
+        working-directory: api
+        continue-on-error: true
+        timeout-minutes: 5
+        run: ./mvnw --batch-mode --no-transfer-progress test -Dtest=DiagnosticoNavegadorTest -Datlas.diagnostico=true -Datlas.navegador=${{ matrix.motor }} | grep -E "DIAGNOSTICO|Tests run:|ERROR" || true
+
       - name: Testes de navegador em ${{ matrix.motor }}
         working-directory: api
         run: ./mvnw --batch-mode --no-transfer-progress test -Dtest=InterfaceNavegadorTest -Datlas.navegador=${{ matrix.motor }}
