@@ -172,6 +172,12 @@ public class ProcessadorDocumentoService {
 			.param("execucao", execucaoId).param("documento", documentoId)
 			.query(UUID.class).optional()
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Execução não encontrada para este documento."));
+		String estadoExecucao = jdbc.sql("SELECT estado FROM execucao_processamento WHERE id=:execucao")
+			.param("execucao", execucaoId).query(String.class).single();
+		if ("PRECISA_OCR".equals(estadoExecucao)) {
+			throw new ResponseStatusException(HttpStatus.CONFLICT,
+				"Esta extração precisa de OCR; não é possível registrar medidas sem texto pesquisável.");
+		}
 
 		String trecho = medida.trecho();
 		Integer inicioCaractere = null;

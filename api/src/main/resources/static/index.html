@@ -11,6 +11,7 @@
     h1 { margin-bottom: 6px; font-size: 2rem; }
     p { line-height: 1.55; }
     .muted { color: #526581; }
+    .warning { padding: 12px 14px; color: #7a2e0e; background: #fff4e5; border: 1px solid #f5c27a; border-radius: 7px; }
     section { margin-top: 22px; padding: 22px; background: white; border: 1px solid #dce3ec; border-radius: 12px; }
     label { display: block; margin: 14px 0 6px; font-weight: 600; }
     input, textarea, select, button { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid #b8c4d3; border-radius: 7px; font: inherit; }
@@ -52,6 +53,7 @@
 
   <section id="extraction" hidden>
     <h2>2. Conferir o texto extraído</h2>
+    <p id="ocr-notice" class="warning" role="status" hidden>Este PDF não tem texto pesquisável. É necessário aplicar OCR antes de registrar ou marcar uma informação como ausente.</p>
     <label for="page-select">Página</label>
     <select id="page-select"></select>
     <pre id="page-text"></pre>
@@ -127,6 +129,7 @@
       documentId = uploaded.id;
       const execution = await request(`/api/documentos/${documentId}/extracoes`, { method: 'POST' });
       executionId = execution.execucaoId;
+      const precisaOcr = execution.estado === 'PRECISA_OCR';
       pages = await request(`/api/documentos/${documentId}/extracoes/${executionId}/paginas`);
       const pageSelect = document.querySelector('#page-select');
       const evidencePage = document.querySelector('#evidence-page');
@@ -141,12 +144,15 @@
         }
       });
       document.querySelector('#extraction').hidden = false;
-      document.querySelector('#candidate').hidden = false;
+      document.querySelector('#ocr-notice').hidden = !precisaOcr;
+      document.querySelector('#candidate').hidden = precisaOcr;
       document.querySelector('#results').hidden = false;
       pageSelect.addEventListener('change', showSelectedPage);
       showSelectedPage();
       await loadMeasures();
-      showStatus(`Texto extraído de ${pages.length} página(s).`);
+      showStatus(precisaOcr
+        ? 'O PDF foi recebido, mas ainda precisa de OCR para permitir a conferência de dados.'
+        : `Texto extraído de ${pages.length} página(s).`);
     } catch (error) {
       showStatus(error.message, true);
     } finally {

@@ -71,6 +71,16 @@ class ProcessamentoDocumentoTest {
 		assertThat(resultado.get("paginas").asInt()).isEqualTo(1);
 		assertThat(jdbc.sql("SELECT texto FROM pagina_texto WHERE execucao_id=:id AND numero=1")
 				.param("id", execucao).query(String.class).single()).isBlank();
+
+		var medidaAusente = new dev.atlas.documentos.MedidaCandidata(
+				"LiFePO4", "capacidade", null, null, "AUSENTE", null, null, java.util.Map.of());
+		MvcResult conflito = mvc.perform(post("/api/documentos/{documentoId}/extracoes/{execucaoId}/medidas", documento, execucao)
+				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsBytes(medidaAusente)))
+			.andExpect(status().isConflict()).andReturn();
+		assertThat(((org.springframework.web.server.ResponseStatusException) conflito.getResolvedException()).getReason())
+				.isEqualTo("Esta extração precisa de OCR; não é possível registrar medidas sem texto pesquisável.");
+		assertThat(medidasDaExecucao(execucao)).isZero();
 	}
 
 	@Test
