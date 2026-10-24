@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -42,7 +43,9 @@ public class ProcessamentoDocumentoController {
 	@GetMapping("/{documentoId}/extracoes/{execucaoId}/medidas")
 	public List<MedidaComEvidencia> listarMedidas(
 			@PathVariable UUID documentoId,
-			@PathVariable UUID execucaoId) {
-		return processador.listarMedidas(documentoId, execucaoId);
+			@PathVariable UUID execucaoId,
+			@RequestParam(defaultValue = "200") int limite,
+			@RequestParam(defaultValue = "0") int deslocamento) {
+		return processador.listarMedidas(documentoId, execucaoId, limite, deslocamento);
 	}
 }

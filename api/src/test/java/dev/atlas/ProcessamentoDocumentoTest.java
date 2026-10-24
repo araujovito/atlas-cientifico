@@ -375,6 +375,26 @@ class ProcessamentoDocumentoTest {
 	}
 
 	@Test
+	void listaMedidasPaginadaEmOrdemEstavelEValidaOsParametros() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("a 1 V b 2 V c 3 V"));
+		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
+		registrar(documento, execucao, "LiFePO4", "m1", "1", "V", "a 1 V");
+		registrar(documento, execucao, "LiFePO4", "m2", "2", "V", "b 2 V");
+		registrar(documento, execucao, "LiFePO4", "m3", "3", "V", "c 3 V");
+		String rota = "/api/documentos/{d}/extracoes/{e}/medidas";
+
+		mvc.perform(get(rota, documento, execucao).param("limite", "2"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
+				.andExpect(jsonPath("$[0].metrica").value("m1")).andExpect(jsonPath("$[1].metrica").value("m2"));
+		mvc.perform(get(rota, documento, execucao).param("limite", "2").param("deslocamento", "2"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].metrica").value("m3"));
+		mvc.perform(get(rota, documento, execucao)).andExpect(jsonPath("$.length()").value(3));
+		mvc.perform(get(rota, documento, execucao).param("limite", "0")).andExpect(status().isBadRequest());
+		mvc.perform(get(rota, documento, execucao).param("deslocamento", "-1")).andExpect(status().isBadRequest());
+	}
+
+	@Test
 	void medidasDaMesmaExecucaoCompartilhamEstudoEExperimentoPorObjeto() throws Exception {
 		UUID documento = enviarPdf(pdfComPaginas("Capacidade 125 mAh/g e tensao 3,4 V"));
 		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());

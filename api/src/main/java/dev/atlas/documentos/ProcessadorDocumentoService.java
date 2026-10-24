@@ -131,7 +131,12 @@ public class ProcessadorDocumentoService {
 			.list();
 	}
 
-	public List<MedidaComEvidencia> listarMedidas(UUID documentoId, UUID execucaoId) {
+	/** Uma linha por evidência, em ordem estável. limite é truncado em 500; antes eram devolvidas todas. */
+	public List<MedidaComEvidencia> listarMedidas(UUID documentoId, UUID execucaoId, int limite, int deslocamento) {
+		if (limite < 1 || deslocamento < 0) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limite deve ser pelo menos 1 e deslocamento não pode ser negativo.");
+		}
+		int limiteEfetivo = Math.min(limite, 500);
 		exigirExecucaoDoDocumento(documentoId, execucaoId);
 
 		return jdbc.sql("""
@@ -143,9 +148,11 @@ public class ProcessadorDocumentoService {
 				JOIN medida m ON m.experimento_id = x.id
 				LEFT JOIN evidencia e ON e.medida_id = m.id
 				WHERE s.versao_documento_id = :documento AND s.execucao_id = :execucao
-				ORDER BY m.registrada_em, m.id, e.pagina
+				ORDER BY m.registrada_em, m.id, e.pagina, e.inicio_caractere
+				LIMIT :limite OFFSET :deslocamento
 				""")
 			.param("documento", documentoId).param("execucao", execucaoId)
+			.param("limite", limiteEfetivo).param("deslocamento", deslocamento)
 			.query((rs, row) -> new MedidaComEvidencia(
 				rs.getObject("medida_id", UUID.class), rs.getString("objeto"), rs.getString("metrica"),
 				rs.getString("valor_original"), rs.getString("unidade_original"), rs.getString("estado"),
