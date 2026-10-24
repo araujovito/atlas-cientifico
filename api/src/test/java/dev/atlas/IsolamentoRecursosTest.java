@@ -56,6 +56,8 @@ class IsolamentoRecursosTest {
         new Rota("PUT","/api/colecoes/{id}/obras/{obra}",204),
         new Rota("DELETE","/api/colecoes/{id}/obras/{obra}",204),
         new Rota("PUT","/api/catalogo/obras/{id}/documentos/{documento}",204));
+    // Rotas com id cujos testes de acesso cruzado estão em CompartilhamentoTest (precisam de arquivo no disco).
+    static final Set<String> COM_TESTE_PROPRIO=Set.of("PUT /api/documentos/{documentoId}/compartilhamento","GET /api/documentos/{documentoId}/original","GET /api/publico/documentos/{id}/original");
     static final Set<String> PUBLICAS=Set.of("GET /api/catalogo/obras/{id}","GET /api/catalogo/obras/{obra}/citacoes","POST /api/catalogo/obras/{obra}/citacoes");
 
     @BeforeEach void contas() throws Exception {
@@ -106,7 +108,7 @@ class IsolamentoRecursosTest {
         mvc.perform(com(put("/api/catalogo/obras/"+f.obra()+"/documentos/"+f.doc()),b)).andExpect(status().isNotFound());
     }
     @Test void inventarioDeRotasExigeCasoParaCadaIdPrivadoOuExcecaoPublica() {
-        var esperado=new HashSet<>(PUBLICAS);PRIVADAS.forEach(r->esperado.add(r.metodo()+" "+r.padrao()));
+        var esperado=new HashSet<>(PUBLICAS);esperado.addAll(COM_TESTE_PROPRIO);PRIVADAS.forEach(r->esperado.add(r.metodo()+" "+r.padrao()));
         var encontradas=new HashSet<String>();
         rotas.getHandlerMethods().forEach((mapping,handler)->mapping.getPatternValues().stream().filter(p->p.startsWith("/api/") && p.contains("{"))
             .forEach(p->mapping.getMethodsCondition().getMethods().forEach(m->encontradas.add(m.name()+" "+p))));

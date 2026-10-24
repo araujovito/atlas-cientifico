@@ -21,6 +21,8 @@ public class AutorizacaoRecursos implements HandlerInterceptor {
         if(pattern==null || !pattern.startsWith("/api/")) return true;
         @SuppressWarnings("unchecked") var ids=(Map<String,String>)request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
         if(ids==null || ids.isEmpty()) return true;
+        // Rotas públicas por desenho: o próprio controlador só entrega documentos marcados PUBLICO.
+        if(pattern.startsWith("/api/publico/")) return true;
         UUID dono=usuario.id();
         String documento=ids.getOrDefault("documentoId",ids.get("documento"));
         if(documento!=null){
