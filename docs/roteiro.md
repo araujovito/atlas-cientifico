@@ -14,7 +14,7 @@ Objetivo: importar um PDF que a pessoa pode processar, extrair texto por página
 | 4 | Extração síncrona de texto por página (Apache PDFBox) | PDF multipágina persiste texto separado por página; PDF sem texto fica em `PRECISA_OCR` | testado |
 | 5 | Execução de processamento com chave de idempotência (hash + versão do processador) | Reprocessar devolve a execução existente e não duplica páginas; medidas serão cobertas quando a etapa 6 for implementada | testado |
 | 6 | Registro de medidas candidatas sem chamada paga | Testes de integração confirmam página e trecho literal, preservação de valor/unidade e rejeição de evidência inexistente | testado |
-| 7 | Endpoint e tela mínima que mostram uma medida e o trecho de origem | Abrir uma medida mostra a página e o trecho exatos | planejado |
+| 7 | Endpoint e tela mínima que mostram uma medida e o trecho de origem | Abrir uma medida mostra a página e o trecho exatos | implementado (API; tela pendente) |
 | 8 | CI no GitHub Actions rodando os testes | Workflow verde no repositório | planejado |
 
 Dependências: Docker (presente), JDK 21 (instalado em `~/.local/jdk`, ver `docs/ambiente.md`).

@@ -10,9 +10,9 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.transaction.annotation.Transactional;
 
 /** Processamento síncrono e idempotente para a primeira entrega do Atlas. */
 @Service
@@ -124,6 +124,37 @@ public class ProcessadorDocumentoService {
 				""")
 			.param("execucao", execucaoId)
 			.query((rs, row) -> new PaginaPdf(rs.getInt("numero"), rs.getString("texto")))
+			.list();
+	}
+
+	public List<MedidaComEvidencia> listarMedidas(UUID documentoId, UUID execucaoId) {
+		boolean pertenceAoDocumento = jdbc.sql("""
+				SELECT EXISTS (
+				    SELECT 1 FROM execucao_processamento
+				    WHERE id = :execucao AND versao_documento_id = :documento
+				)
+				""")
+			.param("execucao", execucaoId).param("documento", documentoId)
+			.query(Boolean.class).single();
+		if (!pertenceAoDocumento) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Execução não encontrada para este documento.");
+		}
+
+		return jdbc.sql("""
+				SELECT m.id AS medida_id, x.objeto, m.metrica, m.valor_original,
+				       m.unidade_original, m.estado, e.pagina, e.trecho
+				FROM estudo s
+				JOIN experimento x ON x.estudo_id = s.id
+				JOIN medida m ON m.experimento_id = x.id
+				LEFT JOIN evidencia e ON e.medida_id = m.id
+				WHERE s.versao_documento_id = :documento AND s.execucao_id = :execucao
+				ORDER BY m.id, e.pagina
+				""")
+			.param("documento", documentoId).param("execucao", execucaoId)
+			.query((rs, row) -> new MedidaComEvidencia(
+				rs.getObject("medida_id", UUID.class), rs.getString("objeto"), rs.getString("metrica"),
+				rs.getString("valor_original"), rs.getString("unidade_original"), rs.getString("estado"),
+				(rs.getObject("pagina") == null ? null : rs.getInt("pagina")), rs.getString("trecho")))
 			.list();
 	}
 

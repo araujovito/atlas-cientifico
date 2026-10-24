@@ -145,6 +145,13 @@ class ProcessamentoDocumentoTest {
 		assertThat(jdbc.sql("SELECT pagina || ':' || trecho FROM evidencia WHERE id=:id")
 				.param("id", UUID.fromString(registrada.get("evidenciaId").asText())).query(String.class).single())
 				.isEqualTo("1:Capacidade específica: 125 mAh/g");
+
+		mvc.perform(get("/api/documentos/{documentoId}/extracoes/{execucaoId}/medidas", documento, execucao))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].valorOriginal").value("125"))
+				.andExpect(jsonPath("$[0].unidadeOriginal").value("mAh/g"))
+				.andExpect(jsonPath("$[0].pagina").value(1))
+				.andExpect(jsonPath("$[0].trecho").value("Capacidade específica: 125 mAh/g"));
 	}
 
 	@Test

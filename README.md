@@ -35,6 +35,8 @@ Este endpoint só registra e armazena o PDF. Ainda não extrai texto, não confi
 
 `POST /api/documentos/{documentoId}/extracoes/{execucaoId}/medidas` registra uma medida candidata sem chamar IA. Para estados diferentes de `AUSENTE`, a página e o trecho são obrigatórios, e o trecho precisa existir literalmente no texto extraído daquela página. Valor e unidade originais são preservados. O endpoint é um alicerce para avaliar extrações pré-gravadas, não uma extração automática.
 
+`GET /api/documentos/{documentoId}/extracoes/{execucaoId}/medidas` lista as medidas da execução com objeto, métrica, valor e unidade originais, estado e evidência (página e trecho). Medidas no estado `AUSENTE` são retornadas sem evidência.
+
 ## Documentos
 
 - [Especificação inicial](docs/especificacao.md): recorte, arquitetura, modelo de dados, eventos, decisões e entregas.

@@ -38,4 +38,11 @@ public class ProcessamentoDocumentoController {
 			@RequestBody MedidaCandidata medida) {
 		return processador.registrarMedida(documentoId, execucaoId, medida);
 	}
+
+	@GetMapping("/{documentoId}/extracoes/{execucaoId}/medidas")
+	public List<MedidaComEvidencia> listarMedidas(
+			@PathVariable UUID documentoId,
+			@PathVariable UUID execucaoId) {
+		return processador.listarMedidas(documentoId, execucaoId);
+	}
 }
