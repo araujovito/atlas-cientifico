@@ -24,6 +24,14 @@ public class CatalogoController {
 	public ObraEncontrada buscarPorDoi(@RequestParam String doi) {
 		return openAlex.buscarPorDoi(doi);
 	}
+	@GetMapping("/busca")
+	public OpenAlexClient.PaginaObras buscar(@RequestParam(required=false) String tema,
+			@RequestParam(required=false) String autor, @RequestParam(required=false) Integer ano,
+			@RequestParam(defaultValue="1") int pagina, @RequestParam(defaultValue="10") int tamanho) {
+		return openAlex.buscar(tema,autor,ano,pagina,tamanho);
+	}
+	@GetMapping("/autores")
+	public List<OpenAlexClient.AutorEncontrado> autores(@RequestParam String nome) { return openAlex.buscarAutores(nome); }
 
 	public record Importacao(String doi) {}
 	@PostMapping

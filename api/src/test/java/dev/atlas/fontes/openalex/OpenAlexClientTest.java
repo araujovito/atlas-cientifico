@@ -205,6 +205,36 @@ class OpenAlexClientTest {
 				chave, prazo), new ObjectMapper(), clock);
 	}
 
+	@Test
+	void buscaPorTemaAutorEAnoCodificaFiltrosEPaginacao() {
+		resposta.set("{\"meta\":{\"count\":12},\"results\":["+OBRA+"]}");
+		var pagina = client.buscar("lithium & capacity", "https://openalex.org/A123",2022,2,5);
+		assertThat(pagina.total()).isEqualTo(12);
+		assertThat(pagina.resultados()).hasSize(1);
+		assertThat(query.get()).contains("search=lithium%20%26%20capacity","publication_year:2022","authorships.author.id:A123","page=2","per_page=5");
+	}
+
+	@Test
+	void buscaAutoresRetornaAlternativasSemEscolherPorNome() {
+		resposta.set("{\"results\":[{\"id\":\"https://openalex.org/A123\",\"display_name\":\"Nome igual\"},{\"id\":\"https://openalex.org/A456\",\"display_name\":\"Nome igual\"}]}");
+		assertThat(client.buscarAutores("Nome igual")).hasSize(2);
+		assertThat(caminho.get()).isEqualTo("/authors");
+	}
+
+	@Test
+	void filtrosNaoAceitamInjecaoDeOutraCondicao() {
+		esperarErro(400,() -> client.buscar(null,"A123,publication_year:2020",null,1,10));
+		esperarErro(400,() -> client.buscar("tema",null,null,0,10));
+		esperarErro(400,() -> client.buscar("tema",null,null,1,100));
+		assertThat(consultas).hasValue(0);
+	}
+
+	@Test
+	void referenciasPreservamSomenteIdsValidosEDistintos() {
+		resposta.set("{\"id\":\"https://openalex.org/W123\",\"referenced_works\":[\"https://openalex.org/W456\",\"https://openalex.org/W456\"]}");
+		assertThat(client.referencias("W123")).containsExactly("https://openalex.org/W456");
+	}
+
 	private static void esperarErro(int statusEsperado, Runnable chamada) {
 		assertThatThrownBy(chamada::run).isInstanceOfSatisfying(ResponseStatusException.class,
 				e -> assertThat(e.getStatusCode().value()).isEqualTo(statusEsperado));

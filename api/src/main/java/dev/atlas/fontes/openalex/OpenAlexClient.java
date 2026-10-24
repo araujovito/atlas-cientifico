@@ -15,6 +15,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -55,11 +56,73 @@ public class OpenAlexClient implements AutoCloseable {
 		} catch (IllegalArgumentException e) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
 		}
-		reservarConsulta();
 		// O DOI entra somente no caminho codificado de uma origem configurada pelo operador.
 		URI uri = UriComponentsBuilder.fromUri(properties.urlBase()).replacePath("/works/")
 				.pathSegment("doi:" + doi.valor()).queryParam("select", "id,doi,title,publication_year,authorships")
 				.build().encode().toUri();
+		return lerObra(consultar(uri), doi);
+	}
+
+	public record PaginaObras(long total, int pagina, int tamanho, List<ObraEncontrada> resultados) {}
+	public record AutorEncontrado(String id, String nome) {}
+
+	public PaginaObras buscar(String tema, String autor, Integer ano, int pagina, int tamanho) {
+		String consulta = tema == null ? "" : tema.strip();
+		if (consulta.length() > 200 || pagina < 1 || tamanho < 1 || tamanho > 20 || (long)pagina*tamanho > 10000
+				|| (ano != null && (ano < 1500 || ano > 2200))) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Filtros ou paginação inválidos.");
+		var filtros = new ArrayList<String>();
+		filtros.add("has_doi:true");
+		if (autor != null && !autor.isBlank()) filtros.add("authorships.author.id:" + validarId(autor,"A"));
+		if (ano != null) filtros.add("publication_year:"+ano);
+		if (consulta.isBlank() && filtros.size() == 1) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Informe tema, autor ou ano.");
+		var builder = UriComponentsBuilder.fromUri(properties.urlBase()).replacePath("/works")
+				.queryParam("filter",String.join(",",filtros)).queryParam("page",pagina).queryParam("per_page",tamanho)
+				.queryParam("select","id,doi,title,publication_year,authorships");
+		if (!consulta.isBlank()) builder.queryParam("search",consulta);
+		var root = consultar(builder.build().encode().toUri());
+		if (!root.path("results").isArray() || root.path("results").size() > tamanho) throw respostaInvalida();
+		var obras = new ArrayList<ObraEncontrada>();
+		for (JsonNode obra : root.path("results")) obras.add(lerObra(obra,null));
+		return new PaginaObras(root.path("meta").path("count").asLong(0),pagina,tamanho,List.copyOf(obras));
+	}
+
+	public List<AutorEncontrado> buscarAutores(String nome) {
+		if (nome == null || nome.strip().length() < 2 || nome.length() > 100) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Informe um nome entre 2 e 100 caracteres.");
+		var uri = UriComponentsBuilder.fromUri(properties.urlBase()).replacePath("/authors")
+				.queryParam("search",nome.strip()).queryParam("per_page",10).queryParam("select","id,display_name").build().encode().toUri();
+		var root = consultar(uri);
+		if (!root.path("results").isArray() || root.path("results").size() > 10) throw respostaInvalida();
+		var autores = new ArrayList<AutorEncontrado>();
+		for (var autor : root.path("results")) {
+			String id = autor.path("id").asText("");
+			if (!id.matches("https://openalex\\.org/A[0-9]+")) throw respostaInvalida();
+			autores.add(new AutorEncontrado(id,texto(autor.path("display_name"))));
+		}
+		return List.copyOf(autores);
+	}
+
+	public List<String> referencias(String obra) {
+		String id = validarId(obra,"W");
+		var uri = UriComponentsBuilder.fromUri(properties.urlBase()).replacePath("/works/").pathSegment(id)
+				.queryParam("select","id,referenced_works").build().encode().toUri();
+		var root = consultar(uri);
+		if (!("https://openalex.org/"+id).equals(root.path("id").asText()) || !root.path("referenced_works").isArray()) throw respostaInvalida();
+		var refs = new ArrayList<String>();
+		for (var ref : root.path("referenced_works")) {
+			if (!ref.isTextual() || !ref.asText().matches("https://openalex\\.org/W[0-9]+")) throw respostaInvalida();
+			refs.add(ref.asText());
+		}
+		return refs.stream().distinct().toList();
+	}
+
+	private static String validarId(String entrada, String prefixo) {
+		String id = entrada.strip().replaceFirst("(?i)^https://openalex\\.org/","").toUpperCase(java.util.Locale.ROOT);
+		if (!id.matches(prefixo+"[0-9]{1,20}")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Identificador OpenAlex inválido.");
+		return id;
+	}
+
+	private JsonNode consultar(URI uri) {
+		reservarConsulta();
 		var request = HttpRequest.newBuilder(uri).timeout(properties.tempoLimite())
 				.header("Accept", "application/json").header("User-Agent", "AtlasCientifico/0.0.1");
 		if (properties.chaveApi() != null && !properties.chaveApi().isBlank()) {
@@ -94,16 +157,16 @@ public class OpenAlexClient implements AutoCloseable {
 		if (response.statusCode() != 200) {
 			throw respostaInvalida();
 		}
-		return lerObra(response.body(), doi);
-	}
-
-	private ObraEncontrada lerObra(String body, Doi consultado) {
-		JsonNode obra;
 		try {
-			obra = mapper.readTree(body);
+			var root = mapper.readTree(response.body());
+			if (root == null || !root.isObject()) throw respostaInvalida();
+			return root;
 		} catch (JacksonException e) {
 			throw respostaInvalida();
 		}
+	}
+
+	private ObraEncontrada lerObra(JsonNode obra, Doi consultado) {
 		if (obra == null || !obra.isObject()) throw respostaInvalida();
 		String id = obra.path("id").asText("");
 		Doi recebido;
@@ -112,7 +175,7 @@ public class OpenAlexClient implements AutoCloseable {
 		} catch (IllegalArgumentException e) {
 			throw respostaInvalida();
 		}
-		if (!id.matches("https://openalex\\.org/W[0-9]+") || !recebido.equals(consultado)) throw respostaInvalida();
+		if (!id.matches("https://openalex\\.org/W[0-9]+") || (consultado != null && !recebido.equals(consultado))) throw respostaInvalida();
 		var autores = new ArrayList<String>();
 		if (obra.path("authorships").isArray()) {
 			for (JsonNode autoria : obra.path("authorships")) {
