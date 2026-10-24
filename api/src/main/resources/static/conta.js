@@ -53,6 +53,8 @@ async function autenticar(path) {
   if (login.disabled || register.disabled) return;
   login.disabled = true; register.disabled = true;
   try {
+    // A pré-sessão vence em 30 minutos; renova cookie e token CSRF antes de enviar, para o login não ficar preso em 401/403.
+    atlasCsrf = (await contaRequest('sessao')).csrfToken;
     mostrarConta(await contaRequest(path,{email:document.querySelector('#auth-email').value,senha:document.querySelector('#auth-password').value}));
   } catch(error) { document.querySelector('#auth-state').textContent = error.message || 'Falha na conexão. Tente novamente.'; }
   finally { login.disabled = false; register.disabled = false; }
