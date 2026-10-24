@@ -42,6 +42,25 @@
   <div id="status" role="status" aria-live="polite"></div>
 
   <section>
+    <h2>Buscar um artigo por DOI</h2>
+    <p class="muted">Consulte título, autores e identificadores no OpenAlex. A consulta mostra metadados; o envio do PDF autorizado é feito separadamente abaixo.</p>
+    <form id="doi-form">
+      <label for="doi">DOI ou link do DOI</label>
+      <input id="doi" maxlength="300" placeholder="10.1038/s41467-022-28959-5" required>
+      <button id="doi-button" type="submit">Buscar artigo</button>
+    </form>
+    <p id="catalog-status" role="status" aria-live="polite"></p>
+    <article id="catalog-result" hidden>
+      <h3 id="work-title"></h3>
+      <p id="work-authors"></p>
+      <p id="work-year"></p>
+      <p><a id="work-doi" target="_blank" rel="noopener noreferrer"></a></p>
+      <p><a id="work-openalex" target="_blank" rel="noopener noreferrer">Ver no OpenAlex</a></p>
+      <p class="muted">Fonte dos metadados: OpenAlex (CC0). A licença dos metadados não determina a permissão de uso do texto completo.</p>
+    </article>
+  </section>
+
+  <section>
     <h2>1. Enviar um PDF</h2>
     <form id="upload-form">
       <label for="pdf">Arquivo PDF</label>
@@ -123,6 +142,37 @@
     }
     return response.json();
   }
+
+  document.querySelector('#doi-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = document.querySelector('#doi-button');
+    if (button.disabled) return;
+    const status = document.querySelector('#catalog-status');
+    const result = document.querySelector('#catalog-result');
+    button.disabled = true;
+    result.hidden = true;
+    status.className = '';
+    status.textContent = 'Consultando o OpenAlex…';
+    try {
+      const query = new URLSearchParams({ doi: document.querySelector('#doi').value.trim() });
+      const work = await request(`/api/catalogo/obras/por-doi?${query}`);
+      document.querySelector('#work-title').textContent = work.titulo || 'Título não informado';
+      document.querySelector('#work-authors').textContent = work.autores.length ? work.autores.join('; ') : 'Autores não informados';
+      document.querySelector('#work-year').textContent = work.ano != null ? `Ano: ${work.ano}` : 'Ano não informado';
+      const doiLink = document.querySelector('#work-doi');
+      doiLink.textContent = `DOI: ${work.doi}`;
+      doiLink.href = `https://doi.org/${encodeURIComponent(work.doi)}`;
+      document.querySelector('#work-openalex').href = `https://openalex.org/${encodeURIComponent(work.openAlexId.split('/').at(-1))}`;
+      result.hidden = false;
+      status.textContent = 'Artigo encontrado.';
+      status.className = 'success';
+    } catch (error) {
+      status.textContent = error.message;
+      status.className = 'error';
+    } finally {
+      button.disabled = false;
+    }
+  });
 
   uploadForm.addEventListener('submit', async event => {
     event.preventDefault();

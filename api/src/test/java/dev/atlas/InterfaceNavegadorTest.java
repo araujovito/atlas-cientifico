@@ -6,6 +6,7 @@ import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.Route;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -157,6 +158,34 @@ class InterfaceNavegadorTest {
 		pagina.locator("#pdf").setInputFiles(pdf);
 		pagina.locator("#consent").check();
 		pagina.locator("#upload-button").click();
+	}
+
+	@Test
+	void buscaDoiMostraTextoExternoSemHtmlELimpaResultadoAoFalhar() {
+		String consulta = "**/api/catalogo/obras/por-doi?**";
+		pagina.route(consulta, route -> route.fulfill(new Route.FulfillOptions()
+				.setContentType("application/json").setBody("""
+				{"fonte":"OPENALEX","openAlexId":"https://openalex.org/W123","doi":"10.1234/artigo",
+				"titulo":"<img src=x onerror=alert(1)>","ano":2022,"autores":["Uma autora","Outro autor"]}
+				""")));
+		pagina.locator("#doi").fill("https://doi.org/10.1234/artigo");
+		pagina.locator("#doi-button").click();
+		assertThat(pagina.locator("#catalog-status")).hasText("Artigo encontrado.");
+		assertThat(pagina.locator("#work-title")).hasText("<img src=x onerror=alert(1)>");
+		assertThat(pagina.locator("#catalog-result img")).hasCount(0);
+		assertThat(pagina.locator("#work-authors")).hasText("Uma autora; Outro autor");
+		assertThat(pagina.locator("#work-year")).hasText("Ano: 2022");
+		assertThat(pagina.locator("#work-openalex")).hasAttribute("href", "https://openalex.org/W123");
+		assertThat(pagina.locator("#work-doi")).hasAttribute("href", "https://doi.org/10.1234%2Fartigo");
+
+		pagina.unroute(consulta);
+		pagina.route(consulta, route -> route.fulfill(new Route.FulfillOptions().setStatus(404)
+				.setContentType("application/problem+json").setBody("{\"detail\":\"Nenhuma obra encontrada no OpenAlex para este DOI.\"}")));
+		pagina.locator("#doi").fill("10.1234/inexistente");
+		pagina.locator("#doi-button").click();
+		assertThat(pagina.locator("#catalog-status")).hasText("Nenhuma obra encontrada no OpenAlex para este DOI.");
+		assertThat(pagina.locator("#catalog-result")).isHidden();
+		assertThat(pagina.locator("#doi-button")).isEnabled();
 	}
 
 	private static byte[] pdfComTexto(String... textos) throws Exception {
