@@ -5,6 +5,10 @@ async function abrirCitacoes(work, refresh = false, offset = 0) {
   const currentRequest = ++citationRequest;
   const status = document.querySelector('#citation-status');
   status.textContent = 'Consultando referências…';
+  // Enquanto outra obra carrega, paginar o grafo antigo cancelaria a carga nova (a numeração acima descarta a mais velha).
+  const controles = ['citation-previous','citation-next'].map(id => document.getElementById(id));
+  const estadoAnterior = controles.map(control => control.disabled);
+  controles.forEach(control => { control.disabled = true; });
   try {
     if (refresh) await request(`/api/catalogo/obras/${work}/citacoes`, { method: 'POST' });
     const graph = await request(`/api/catalogo/obras/${work}/citacoes?limite=10&deslocamento=${offset}`);
@@ -41,7 +45,10 @@ async function abrirCitacoes(work, refresh = false, offset = 0) {
     });
     document.querySelector('#citation-previous').disabled = offset === 0;
     document.querySelector('#citation-next').disabled = offset+graph.ligacoes.length >= graph.totalReferencias;
-  } catch(error) { if (currentRequest === citationRequest) status.textContent = error.message; throw error; }
+  } catch(error) {
+    if (currentRequest === citationRequest) { status.textContent = error.message; controles.forEach((control,i) => { control.disabled = estadoAnterior[i]; }); }
+    throw error;
+  }
 }
 for (const [id,delta] of [['citation-previous',-10],['citation-next',10]]) {
   document.getElementById(id).onclick = () => abrirCitacoes(citationWork,false,Math.max(0,citationOffset+delta)).catch(() => {});

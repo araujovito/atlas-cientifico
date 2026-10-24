@@ -3,6 +3,9 @@ const libraryStatus = document.querySelector('#library-status');
 let libraryOffset = 0;
 let searchPage = 1;
 let discoveryQuery;
+// Cada operação que redesenha a lista ganha um número; resposta que chega depois de outra mais nova é descartada.
+let libraryToken = 0;
+let discoveryToken = 0;
 
 function libraryMessage(text, error = false) {
   libraryStatus.textContent = text;
@@ -33,11 +36,14 @@ async function importWork(work) {
 bindAction('#save-work', async () => { if (workToSave) await importWork(workToSave); });
 
 async function refreshLibrary() {
-  const works = await request(`/api/catalogo/obras?limite=20&deslocamento=${libraryOffset}`);
+  const token = ++libraryToken;
+  // As duas consultas terminam antes de qualquer desenho: se uma falhar, a tela não fica pela metade.
+  const [works, collections] = await Promise.all([
+    request(`/api/catalogo/obras?limite=20&deslocamento=${libraryOffset}`), request('/api/colecoes?limite=100')]);
+  if (token !== libraryToken) return;
   renderLibrary(works);
   document.querySelector('#library-previous').disabled = libraryOffset === 0;
   document.querySelector('#library-next').disabled = works.length < 20;
-  const collections = await request('/api/colecoes?limite=100');
   const select = document.querySelector('#collection-select');
   const previous = select.value;
   select.replaceChildren(...collections.map(collection => {
@@ -55,6 +61,7 @@ function renderLibrary(works) {
     const ids = document.createElement('p'); ids.textContent = work.identificadores.map(id => `${id.tipo}: ${id.valor}`).join(' · ');
     article.append(title, ids);
     const choose = document.createElement('button'); choose.textContent = 'Usar esta obra para o PDF';
+    choose.setAttribute('aria-label', `Usar a obra ${work.titulo} para o próximo PDF`);
     choose.onclick = () => {
       if (document.querySelector('#upload-button').disabled || document.querySelector('#save-button').disabled) return;
       activeWorkId = work.id; document.querySelector('#active-work').textContent = `Obra do próximo PDF: ${work.titulo}`;
@@ -68,6 +75,7 @@ function renderLibrary(works) {
       catch (error) { libraryMessage(error.message,true); } finally { add.disabled = false; }
     };
     const citations = document.createElement('button'); citations.textContent = 'Consultar referências';
+    citations.setAttribute('aria-label', `Consultar as referências de ${work.titulo}`);
     citations.onclick = async () => {
       citations.disabled = true;
       try { await abrirCitacoes(work.id, true); } catch (error) { libraryMessage(error.message,true); } finally { citations.disabled = false; }
@@ -91,7 +99,11 @@ bindAction('#collection-form', async () => {
 bindAction('#collection-show', async () => {
   const id = document.querySelector('#collection-select').value;
   if (!id) return libraryMessage('Escolha uma coleção.',true);
-  renderLibrary(await request(`/api/colecoes/${id}/obras?limite=100`));
+  const token = ++libraryToken;
+  const works = await request(`/api/colecoes/${id}/obras?limite=100`);
+  if (token !== libraryToken) return;
+  renderLibrary(works);
+  if (works.length === 100) libraryMessage('Mostrando as 100 primeiras obras da coleção; as demais não são exibidas.');
   document.querySelector('#library-previous').disabled = true; document.querySelector('#library-next').disabled = true;
 });
 bindAction('#unlink-work', async () => { activeWorkId = undefined; document.querySelector('#active-work').textContent = 'O próximo PDF será enviado sem vínculo com uma obra.'; });
@@ -106,8 +118,11 @@ bindAction('#author-form', async () => {
 
 async function discover() {
   const params = new URLSearchParams({ ...discoveryQuery, pagina: String(searchPage), tamanho: '10' });
-  const output = document.querySelector('#discovery-results'); output.replaceChildren();
+  const output = document.querySelector('#discovery-results');
+  const token = ++discoveryToken;
   const result = await request(`/api/catalogo/obras/busca?${params}`);
+  if (token !== discoveryToken) return;
+  output.replaceChildren();
   document.querySelector('#discovery-page').textContent = `Página ${result.pagina} · ${result.total} resultado(s)`;
   for (const work of result.resultados) {
     const article = document.createElement('article'); const title = document.createElement('h3'); title.textContent = work.titulo || work.doi;
