@@ -27,5 +27,5 @@ Seguem a seção 9 da especificação: 2 descoberta e catálogo, 3 processamento
 
 ## Pendências transversais
 
-- Escolher e documentar o conjunto de artigos de baterias (licença permite processar?) antes de avaliar extração automática no passo 6.
+- Completar e revisar o conjunto de referência de artigos de baterias antes de avaliar extração automática no passo 6. O candidato inicial e suas limitações estão em `docs/conjunto-referencia.md`.
 - Confirmar limites de requisição e termos do Unpaywall e do Europe PMC antes da entrega 2.
