@@ -10,7 +10,8 @@ Estado: seleção preliminar, ainda não é um conjunto de avaliação. Texto XM
 - **Licença do artigo:** o XML do texto completo declara Creative Commons Attribution 4.0 International (CC BY 4.0). A licença permite compartilhar e adaptar o artigo com atribuição, link para a licença e indicação de alterações; materiais de terceiros podem ter créditos/licenças próprios e precisam ser conferidos individualmente.
 - **Dados associados:** o artigo aponta para o projeto OSF [osf.io/ybd6f](https://osf.io/ybd6f/). A API pública do OSF o identifica como público, mas retorna `license: null`. Portanto, não copiar, baixar para redistribuição nem tratar os arquivos depositados no OSF como licenciados até confirmar os termos diretamente com os autores ou com o repositório.
 - **Uso permitido nesta etapa:** avaliar o texto do artigo sob CC BY para extração e rastreabilidade, mantendo metadados, atribuição e proveniência. Não incluir o PDF no Git. Conferir os créditos de figuras e demais materiais antes de reutilizá-los.
-- **Ainda falta verificar:** mapear o XML à versão PDF licenciada e às páginas físicas; confirmar estrutura e legibilidade das tabelas; anotar campos de capacidade, taxa C, ciclos e condições com evidência reproduzível. Não usar valores do artigo como gabarito até revisão manual independente.
+- **Inspeção do PDF da editora:** cinco páginas. A página 2 explica a fórmula de retenção; a página 3 contém figuras, e a legenda da Figura 2 diz que dados de três células foram reproduzidos de outro trabalho com permissão; a página 4 contém uma curva de retenção e a Tabela 2, que descreve metadados, não observações numéricas.
+- **Decisão provisória:** manter apenas como candidato para testar leitura do texto, não para gabarito. Não copiar valores das figuras reproduzidas. Como os dados numéricos estão no dataset do OSF e a licença dele continua nula, não usar esse conjunto até esclarecer os termos. Ainda falta segunda revisão humana.
 
 ## Outros candidatos para ampliar os formatos
 
@@ -20,6 +21,14 @@ Estes artigos também declaram CC BY 4.0 no XML de texto completo servido pela E
   - **Observação de escopo:** o XML tem uma tabela sobre razões de intensidade de picos de difração de raios X; resultados eletroquímicos aparecem em prosa e figuras. Pode ajudar a testar campos que não devem ser confundidos com capacidade, mas não é o primeiro candidato para uma linha de comparação de desempenho.
 - “Construction of Uniform LiF Coating Layers for Stable High-Voltage LiCoO₂ Cathodes in Lithium-Ion Batteries.” *Molecules* (2024). DOI: [10.3390/molecules29061414](https://doi.org/10.3390/molecules29061414). PMCID: [PMC10974255](https://pmc.ncbi.nlm.nih.gov/articles/PMC10974255/). [Texto completo XML](https://www.ebi.ac.uk/europepmc/webservices/rest/PMC10974255/fullTextXML).
   - **Observação de escopo:** a tabela principal contém parâmetros de rede; parte dos resultados eletroquímicos está em figuras e informação suplementar. Não usar arquivos suplementares até confirmar seus termos/licenças.
+
+## Anotação candidata — capacidade específica reportada em prosa
+
+- Zhang Y, Wu Y, Li H, Chen J, Lei D, Wang C. “A dual-function liquid electrolyte additive for high-energy non-aqueous lithium metal batteries.” *Nature Communications* (2022). DOI: [10.1038/s41467-022-28959-5](https://doi.org/10.1038/s41467-022-28959-5). PMCID: [PMC8917126](https://pmc.ncbi.nlm.nih.gov/articles/PMC8917126/). [PDF da editora](https://www.nature.com/articles/s41467-022-28959-5.pdf), [XML da Europe PMC](https://www.ebi.ac.uk/europepmc/webservices/rest/PMC8917126/fullTextXML).
+- O XML do texto completo declara CC BY 4.0. O PDF da versão publicada foi baixado para inspeção local em 2026-10-24 e removido ao final; SHA-256 verificado: `6d27a98aa4a76a07765378fb492b5f7949e1daad621a85a8ae26f98f6b3bc313`. O PDF não foi adicionado ao Git.
+- **Anotação ainda pendente de segunda revisão:** objeto `Li || NCM622 coin cell`; métrica `specific discharge capacity`; valor original `98.2`; unidade original `mAh g−1`; estado `REPORTADO`; evidência na página física 6: “98.2 mAh g−1”. A frase circundante atribui o resultado ao eletrólito AFE e diz que as células chegaram a 1000 ciclos.
+- **Condições associadas reportadas no mesmo parágrafo:** carga de cátodo de 2.4 mg cm−2; corrente de 19, 38, 95, 190, 380 e 950 mA g−1 por cinco ciclos em cada taxa, seguida por estabilização em 190 mA g−1. O artigo define os aditivos da formulação como 0.4 wt% de Al(EtO)₃ e 5 vol% de FEC em eletrólito carbonato com LiPF₆. Preservar essas condições no experimento; não comparar esse resultado isoladamente como se fosse propriedade intrínseca do cátodo.
+- É um exemplo útil de valor em prosa com condições importantes, mas não uma anotação gold: a evidência é curta e depende do contexto da frase e da configuração do teste. Uma pessoa revisora precisa confirmar a associação de cada condição antes de usar o item para avaliar extração.
 
 As licenças de figuras e materiais de terceiros devem ser verificadas nos próprios artigos. A presença dos candidatos nesta lista não significa que os PDFs, figuras ou dados suplementares já foram baixados, incorporados ou revisados.
 
@@ -31,4 +40,4 @@ As licenças de figuras e materiais de terceiros devem ser verificadas nos próp
 4. Anotar manualmente valor original, unidade, condições, página e trecho; marcar como ausente quando o artigo não reportar o campo.
 5. Ter uma segunda revisão humana antes de usar qualquer anotação para calcular métricas.
 
-Este documento registra um candidato, não uma afirmação de que o conjunto de referência já foi montado ou medido.
+Este documento registra candidatos e uma anotação pendente de revisão, não uma afirmação de que o conjunto de referência já foi validado ou medido.
