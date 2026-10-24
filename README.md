@@ -22,6 +22,7 @@ cd api
 ```
 
 Os testes de integração usam Testcontainers e precisam de Docker.
+O GitHub Actions executa essa mesma suíte em pushes e pull requests para `main`.
 
 ## Upload mínimo
 
