@@ -147,7 +147,7 @@
       document.querySelector('#ocr-notice').hidden = !precisaOcr;
       document.querySelector('#candidate').hidden = precisaOcr;
       document.querySelector('#results').hidden = false;
-      pageSelect.addEventListener('change', showSelectedPage);
+      pageSelect.onchange = showSelectedPage; // atribuição, não addEventListener: cada envio de PDF não empilha outro ouvinte
       showSelectedPage();
       await loadMeasures();
       showStatus(precisaOcr
