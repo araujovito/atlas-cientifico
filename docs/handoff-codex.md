@@ -88,3 +88,7 @@ Pendências que não podem ser apresentadas como concluídas: avaliação cient�
 - Última suíte completa, 2026-10-24 às 14:18 BRT: **117 testes, 0 falhas, 0 erros, 0 ignorados**, BUILD SUCCESS. Inclui seis fluxos Chromium, PostgreSQL real, parser em processo e teste OTLP. O Maven ainda avisa sobre metadados de dois repositórios opcionais 401 e escrita nativa no canal Surefire; não impediram o build e não foram suprimidos.
 - Dois smokes com JAR real passaram, um sem e outro com coletor local. Mesmos uploads concorrentes mantiveram um documento/uma tarefa, e retomada do worker concluiu. Apenas os projetos/volumes sintéticos criados pelos smokes foram removidos; instâncias preexistentes não foram alteradas. As imagens de teste ficam no cache Docker.
 - `git fetch origin` não mostrou commits remotos novos a integrar; não houve push, criação de PR, uso AWS, chamada paga ou publicação LinkedIn. Apontamentos atualizados somente no `linkedin.md` ignorado pelo Git.
+
+## Próximo passo sugerido pelo revisor
+
+O que falta é a abertura a mais de uma pessoa. O plano com critérios verificáveis está em [contas-e-hospedagem.md](contas-e-hospedagem.md): contas e dono por recurso (com teste de IDOR em toda rota com id), limites para público, e S3 só quando houver mais de uma instância. Cada fase deve entrar em commits pequenos, com a migração testada sobre dados antigos. A decisão sobre devolver ou não o PDF original a terceiros é do autor.

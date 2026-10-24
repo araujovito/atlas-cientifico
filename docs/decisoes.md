@@ -21,7 +21,7 @@ Registro curto de decisões de projeto: o que foi escolhido, o porquê e o que f
 
 | Tema | Decisão | Quando revisitar |
 |---|---|---|
-| Contas de usuário e dono por documento | Adiada. A chave compartilhada cobre o período em que há um único operador. | Antes de dar acesso a mais de uma pessoa ou de hospedar publicamente. |
+| Contas de usuário e dono por documento | Adiada. A chave compartilhada cobre o período em que há um único operador. | Antes de dar acesso a mais de uma pessoa ou de hospedar publicamente. Plano passo a passo em [contas-e-hospedagem.md](contas-e-hospedagem.md). |
 | Processamento assíncrono | Adiado para a entrega 3 da especificação. O caminho é uma fila no PostgreSQL (`FOR UPDATE SKIP LOCKED`) usando os estados `PENDENTE` e `EM_ANDAMENTO`, que já existem no esquema; a API passa a devolver 202. | Quando houver PDFs grandes demais para a requisição ou mais de uma instância. |
 | Armazenamento em S3 | Adiado. A chave de armazenamento já é só o nome do arquivo, então cabe como chave de objeto atrás de uma interface. | Quando houver mais de uma instância. |
 | Procedência de quem afirmou (`REPORTADO`, método, versão do extrator) | Adiada: exige identidade de quem registra. | Junto com as contas. |
