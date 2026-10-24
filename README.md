@@ -26,6 +26,8 @@ O GitHub Actions executa essa mesma suíte em pushes e pull requests para `main`
 
 ## Upload mínimo
 
+Com a API em execução, abra `http://localhost:8080/` para usar a tela mínima: enviar um PDF autorizado, processar o texto e registrar ou consultar medidas com evidência. O registro de medidas é manual; a interface não afirma que houve extração automática.
+
 `POST /api/documentos` recebe `multipart/form-data` com `arquivo` (PDF) e `autorizacaoConfirmada=true`; `titulo` é opcional e declarado pela pessoa, não inferido pelo sistema. O limite padrão é 20 MiB e pode ser ajustado com `ATLAS_DOCUMENTOS_TAMANHO_MAXIMO`. Os arquivos são armazenados em `data/documentos`, relativo ao diretório em que a API foi iniciada (`ATLAS_DOCUMENTOS_DIR` para mudar o diretório). A resposta indica `duplicado` quando o mesmo conteúdo já foi recebido.
 
 Este endpoint só registra e armazena o PDF. Ainda não extrai texto, não confirma licença e não produz resultados científicos.

@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Atlas Científico</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, system-ui, sans-serif; color: #172b4d; background: #f5f7fa; }
+    body { margin: 0; }
+    main { max-width: 860px; margin: 40px auto; padding: 0 20px 48px; }
+    h1 { margin-bottom: 6px; font-size: 2rem; }
+    p { line-height: 1.55; }
+    .muted { color: #526581; }
+    section { margin-top: 22px; padding: 22px; background: white; border: 1px solid #dce3ec; border-radius: 12px; }
+    label { display: block; margin: 14px 0 6px; font-weight: 600; }
+    input, textarea, select, button { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid #b8c4d3; border-radius: 7px; font: inherit; }
+    textarea { min-height: 90px; resize: vertical; }
+    input[type=checkbox] { width: auto; margin-right: 8px; }
+    label.consent { display: flex; align-items: center; font-weight: 400; }
+    button { width: auto; margin-top: 16px; padding: 10px 18px; color: white; background: #155eef; border: 0; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    #status { min-height: 24px; margin: 16px 0; }
+    .error { color: #b42318; }
+    .success { color: #067647; }
+    pre { max-height: 260px; overflow: auto; white-space: pre-wrap; padding: 14px; background: #f5f7fa; border-radius: 7px; }
+    article { padding: 14px 0; border-top: 1px solid #e4e9f0; }
+    blockquote { margin: 8px 0; padding: 10px 14px; background: #f5f7fa; border-left: 3px solid #528bff; }
+    [hidden] { display: none !important; }
+    @media (max-width: 620px) { main { margin-top: 24px; } .row { grid-template-columns: 1fr; gap: 0; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Atlas Científico</h1>
+  <p class="muted">Um primeiro fluxo para conferir texto de PDFs e ligar cada medida à sua evidência.</p>
+  <p class="muted">O registro da medida é manual nesta versão. O Atlas não interpreta nem valida o resultado científico.</p>
+  <div id="status" role="status" aria-live="polite"></div>
+
+  <section>
+    <h2>1. Enviar um PDF</h2>
+    <form id="upload-form">
+      <label for="pdf">Arquivo PDF</label>
+      <input id="pdf" name="arquivo" type="file" accept="application/pdf,.pdf" required>
+      <label for="title">Título (opcional)</label>
+      <input id="title" name="titulo" maxlength="500">
+      <label class="consent"><input id="consent" type="checkbox" required>Tenho autorização para processar este PDF.</label>
+      <button id="upload-button" type="submit">Enviar e extrair texto</button>
+    </form>
+  </section>
+
+  <section id="extraction" hidden>
+    <h2>2. Conferir o texto extraído</h2>
+    <label for="page-select">Página</label>
+    <select id="page-select"></select>
+    <pre id="page-text"></pre>
+  </section>
+
+  <section id="candidate" hidden>
+    <h2>3. Registrar uma medida candidata</h2>
+    <p class="muted">Para medidas com valor, copie um trecho literal do texto acima. O servidor confere se ele está na página indicada.</p>
+    <form id="measure-form">
+      <div class="row">
+        <div><label for="object">Material ou objeto estudado</label><input id="object" required maxlength="300"></div>
+        <div><label for="metric">Métrica</label><input id="metric" required maxlength="300"></div>
+      </div>
+      <div class="row">
+        <div><label for="value">Valor original</label><input id="value" maxlength="300"></div>
+        <div><label for="unit">Unidade original</label><input id="unit" maxlength="100"></div>
+      </div>
+      <div class="row">
+        <div><label for="state">Estado</label><select id="state">
+          <option value="REPORTADO">Reportado</option>
+          <option value="PENDENTE_REVISAO">Pendente de revisão</option>
+          <option value="INFERIDO">Inferido</option>
+          <option value="AUSENTE">Ausente no texto</option>
+        </select></div>
+        <div id="page-field"><label for="evidence-page">Página da evidência</label><select id="evidence-page"></select></div>
+      </div>
+      <div id="excerpt-field"><label for="excerpt">Trecho literal</label><textarea id="excerpt" maxlength="5000"></textarea></div>
+      <button id="save-button" type="submit">Salvar medida</button>
+    </form>
+  </section>
+
+  <section id="results" hidden>
+    <h2>Medidas registradas</h2>
+    <div id="measure-list"></div>
+  </section>
+</main>
+<script>
+  const statusBox = document.querySelector('#status');
+  const uploadForm = document.querySelector('#upload-form');
+  let documentId;
+  let executionId;
+  let pages = [];
+
+  function showStatus(message, error = false) {
+    statusBox.textContent = message;
+    statusBox.className = error ? 'error' : 'success';
+  }
+
+  async function request(url, options) {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      let detail = `A solicitação falhou (${response.status}).`;
+      try { detail = (await response.json()).detail || detail; } catch { /* usa a mensagem padrão */ }
+      throw new Error(detail);
+    }
+    return response.json();
+  }
+
+  uploadForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = document.querySelector('#upload-button');
+    button.disabled = true;
+    showStatus('Enviando PDF e extraindo o texto…');
+    try {
+      const body = new FormData();
+      body.append('arquivo', document.querySelector('#pdf').files[0]);
+      body.append('titulo', document.querySelector('#title').value);
+      body.append('autorizacaoConfirmada', 'true');
+      const uploaded = await request('/api/documentos', { method: 'POST', body });
+      documentId = uploaded.id;
+      const execution = await request(`/api/documentos/${documentId}/extracoes`, { method: 'POST' });
+      executionId = execution.execucaoId;
+      pages = await request(`/api/documentos/${documentId}/extracoes/${executionId}/paginas`);
+      const pageSelect = document.querySelector('#page-select');
+      const evidencePage = document.querySelector('#evidence-page');
+      pageSelect.replaceChildren();
+      evidencePage.replaceChildren();
+      pages.forEach(page => {
+        for (const select of [pageSelect, evidencePage]) {
+          const option = document.createElement('option');
+          option.value = page.numero;
+          option.textContent = `Página ${page.numero}`;
+          select.append(option);
+        }
+      });
+      document.querySelector('#extraction').hidden = false;
+      document.querySelector('#candidate').hidden = false;
+      document.querySelector('#results').hidden = false;
+      pageSelect.addEventListener('change', showSelectedPage);
+      showSelectedPage();
+      await loadMeasures();
+      showStatus(`Texto extraído de ${pages.length} página(s).`);
+    } catch (error) {
+      showStatus(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  function showSelectedPage() {
+    const page = pages.find(item => String(item.numero) === document.querySelector('#page-select').value);
+    document.querySelector('#page-text').textContent = page?.texto || '(Nenhum texto pesquisável nesta página.)';
+    document.querySelector('#evidence-page').value = page?.numero || '';
+  }
+
+  document.querySelector('#state').addEventListener('change', event => {
+    const absent = event.target.value === 'AUSENTE';
+    document.querySelector('#value').required = !absent;
+    document.querySelector('#evidence-page').required = !absent;
+    document.querySelector('#excerpt').required = !absent;
+    document.querySelector('#page-field').hidden = absent;
+    document.querySelector('#excerpt-field').hidden = absent;
+    document.querySelector('#value').disabled = absent;
+    document.querySelector('#unit').disabled = absent;
+  });
+
+  document.querySelector('#measure-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = document.querySelector('#save-button');
+    button.disabled = true;
+    const state = document.querySelector('#state').value;
+    const payload = {
+      objeto: document.querySelector('#object').value,
+      metrica: document.querySelector('#metric').value,
+      valorOriginal: state === 'AUSENTE' ? null : document.querySelector('#value').value,
+      unidadeOriginal: state === 'AUSENTE' ? null : document.querySelector('#unit').value || null,
+      estado: state,
+      pagina: state === 'AUSENTE' ? null : Number(document.querySelector('#evidence-page').value),
+      trecho: state === 'AUSENTE' ? null : document.querySelector('#excerpt').value
+    };
+    try {
+      await request(`/api/documentos/${documentId}/extracoes/${executionId}/medidas`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      await loadMeasures();
+      showStatus('Medida registrada. Confira a página e o trecho exibidos abaixo.');
+      document.querySelector('#excerpt').value = '';
+    } catch (error) {
+      showStatus(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  async function loadMeasures() {
+    const measures = await request(`/api/documentos/${documentId}/extracoes/${executionId}/medidas`);
+    const list = document.querySelector('#measure-list');
+    list.replaceChildren();
+    measures.forEach(measure => {
+      const article = document.createElement('article');
+      const heading = document.createElement('h3');
+      heading.textContent = `${measure.objeto}: ${measure.metrica}`;
+      const value = document.createElement('p');
+      value.textContent = measure.estado === 'AUSENTE' ? 'Informação ausente no texto' : `${measure.valorOriginal}${measure.unidadeOriginal ? ` ${measure.unidadeOriginal}` : ''} · ${measure.estado}`;
+      article.append(heading, value);
+      if (measure.trecho) {
+        const page = document.createElement('p');
+        page.textContent = `Página ${measure.pagina}`;
+        const quote = document.createElement('blockquote');
+        quote.textContent = measure.trecho;
+        article.append(page, quote);
+      }
+      list.append(article);
+    });
+    if (measures.length === 0) list.textContent = 'Ainda não há medidas nesta extração.';
+  }
+</script>
+</body>
+</html>

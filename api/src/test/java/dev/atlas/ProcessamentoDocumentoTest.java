@@ -100,6 +100,16 @@ class ProcessamentoDocumentoTest {
 	}
 
 	@Test
+	void paginaInicialApresentaInterfaceMinimaDaDemonstracao() throws Exception {
+		mvc.perform(get("/index.html"))
+				.andExpect(status().isOk())
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+						.string(org.hamcrest.Matchers.containsString("Registrar uma medida candidata")))
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+						.string(org.hamcrest.Matchers.containsString("Trecho literal")));
+	}
+
+	@Test
 	void consultaTextoPorPaginaNaOrdemOriginal() throws Exception {
 		UUID documento = enviarPdf(pdfComPaginas("Trecho da pagina inicial", "Trecho da segunda pagina"));
 		JsonNode processamento = processar(documento);
