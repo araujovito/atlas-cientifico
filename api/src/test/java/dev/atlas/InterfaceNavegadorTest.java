@@ -54,6 +54,7 @@ class InterfaceNavegadorTest {
 
 	@BeforeAll
 	static void abrirNavegador() {
+		com.microsoft.playwright.assertions.PlaywrightAssertions.setDefaultAssertionTimeout(15000);
 		playwright = Playwright.create();
 		navegador = playwright.chromium().launch();
 	}
@@ -101,6 +102,10 @@ class InterfaceNavegadorTest {
 		pagina.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON,
 				new Page.GetByRoleOptions().setName("Ver no texto extraído")).click();
 		assertThat(pagina.locator("#page-text mark")).hasText("160 mAh/g");
+		pagina.reload();
+		pagina.locator("#resume-processing").click();
+		assertThat(pagina.locator("#status")).hasText("Texto extraído de 1 página(s).");
+		assertThat(pagina.locator("#measure-list article")).containsText("LiFePO4: capacidade específica");
 	}
 
 	@Test

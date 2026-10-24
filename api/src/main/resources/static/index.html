@@ -98,6 +98,8 @@
       <label class="consent"><input id="consent" type="checkbox" required>Tenho autorização para processar este PDF.</label>
       <button id="upload-button" type="submit">Enviar e extrair texto</button>
     </form>
+    <p id="processing-info" class="muted"></p>
+    <button id="resume-processing" type="button" hidden>Retomar último processamento</button>
   </section>
 
   <section id="extraction" hidden>
@@ -222,38 +224,68 @@
       const uploaded = await request('/api/documentos', { method: 'POST', body });
       documentId = uploaded.id;
       if (chosenWork) await request(`/api/catalogo/obras/${chosenWork}/documentos/${documentId}`, { method: 'PUT' });
-      const execution = await request(`/api/documentos/${documentId}/extracoes`, { method: 'POST' });
-      executionId = execution.execucaoId;
-      const precisaOcr = execution.estado === 'PRECISA_OCR';
-      pages = await request(`/api/documentos/${documentId}/extracoes/${executionId}/paginas`);
-      const pageSelect = document.querySelector('#page-select');
-      const evidencePage = document.querySelector('#evidence-page');
-      pageSelect.replaceChildren();
-      evidencePage.replaceChildren();
-      pages.forEach(page => {
-        for (const select of [pageSelect, evidencePage]) {
-          const option = document.createElement('option');
-          option.value = page.numero;
-          option.textContent = `Página ${page.numero}`;
-          select.append(option);
-        }
-      });
-      document.querySelector('#extraction').hidden = false;
-      document.querySelector('#ocr-notice').hidden = !precisaOcr;
-      document.querySelector('#candidate').hidden = precisaOcr;
-      document.querySelector('#results').hidden = false;
-      pageSelect.onchange = showSelectedPage; // atribuição, não addEventListener: cada envio de PDF não empilha outro ouvinte
-      showSelectedPage();
-      await loadMeasures();
-      showStatus(precisaOcr
-        ? 'O PDF foi recebido, mas ainda precisa de OCR para permitir a conferência de dados.'
-        : `Texto extraído de ${pages.length} página(s).`);
+      const task = await request(`/api/documentos/${documentId}/processamentos`, { method: 'POST' });
+      try { sessionStorage.setItem('atlas-processamento',task.id); document.querySelector('#resume-processing').hidden = false; } catch { /* acompanhamento funciona sem armazenamento */ }
+      const execution = await acompanharTarefa(task.id);
+      await mostrarExecucao(execution);
     } catch (error) {
       resetDocument();
       showStatus(error.message, true);
     } finally {
       button.disabled = false;
     }
+  });
+
+  async function mostrarExecucao(execution) {
+    executionId = execution.execucaoId;
+    const precisaOcr = execution.estado === 'PRECISA_OCR';
+    pages = await request(`/api/documentos/${documentId}/extracoes/${executionId}/paginas`);
+    const pageSelect = document.querySelector('#page-select');
+    const evidencePage = document.querySelector('#evidence-page');
+    pageSelect.replaceChildren();
+    evidencePage.replaceChildren();
+    pages.forEach(page => {
+      for (const select of [pageSelect, evidencePage]) {
+        const option = document.createElement('option');
+        option.value = page.numero;
+        option.textContent = `Página ${page.numero}`;
+        select.append(option);
+      }
+    });
+    document.querySelector('#extraction').hidden = false;
+    document.querySelector('#ocr-notice').hidden = !precisaOcr;
+    document.querySelector('#candidate').hidden = precisaOcr;
+    document.querySelector('#results').hidden = false;
+    pageSelect.onchange = showSelectedPage; // atribuição, não addEventListener: cada envio de PDF não empilha outro ouvinte
+    showSelectedPage();
+    await loadMeasures();
+    showStatus(precisaOcr
+      ? 'O PDF foi recebido, mas ainda precisa de OCR para permitir a conferência de dados.'
+      : `Texto extraído de ${pages.length} página(s).`);
+  }
+
+  async function acompanharTarefa(id) {
+    const deadline = Date.now() + 120000;
+    for (;;) {
+      const task = await request(`/api/processamentos/${id}`);
+      document.querySelector('#processing-info').textContent = `Processamento ${id}: ${task.estado} · tentativa ${task.tentativas}`;
+      if (task.estado === 'FALHOU') throw new Error(task.detalhe || 'O processamento falhou.');
+      if (task.estado === 'CONCLUIDO' || task.estado === 'PRECISA_OCR') { documentId = task.documentoId; return task; }
+      if (Date.now() > deadline) throw new Error('O processamento continua em segundo plano. Use Retomar último processamento para acompanhar.');
+      await new Promise(resolve => setTimeout(resolve,500));
+    }
+  }
+
+  try { document.querySelector('#resume-processing').hidden = !sessionStorage.getItem('atlas-processamento'); } catch { /* opcional */ }
+  document.querySelector('#resume-processing').addEventListener('click', async () => {
+    const upload = document.querySelector('#upload-button');
+    if (upload.disabled || document.querySelector('#save-button').disabled) return;
+    upload.disabled = true; resetDocument();
+    try {
+      const id = sessionStorage.getItem('atlas-processamento');
+      if (id) await mostrarExecucao(await acompanharTarefa(id));
+    } catch (error) { resetDocument(); showStatus(error.message,true); }
+    finally { upload.disabled = false; }
   });
 
   function resetDocument() {
