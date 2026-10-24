@@ -40,7 +40,7 @@ Evidência dos passos 1 e 2: `5693848`, `9ff978b` e [contrato/verificações do 
 | Passo | Estado e evidência |
 |---|---|
 | Isolar parser com prazo e heap | testado — `82fd90d`: JVM lenta encerrada de verdade; não é sandbox de SO |
-| Fila transacional + eventos no PostgreSQL | testado — `d562fde`: SKIP LOCKED, reserva, token, backoff e falhas retidas; Kafka dispensado nesta fase |
+| Fila transacional + eventos no PostgreSQL | testado — `d562fde`: reserva com exclusão por UPDATE condicional (índices parciais por ramo; `SKIP LOCKED` só na limpeza das esgotadas), reserva, token, backoff e falhas retidas; Kafka dispensado nesta fase |
 | Reentrega idempotente | testado — recuperação após persistir e antes de confirmar, duas reservas concorrentes e rejeição de token antigo |
 | API 202 e acompanhamento/retomada na tela | testado — `2153db7`, Chromium |
 | Interrupção recuperável | testado — `827c53a`, 503 sem execução incompleta |

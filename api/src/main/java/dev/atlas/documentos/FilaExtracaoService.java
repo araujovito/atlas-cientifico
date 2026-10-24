@@ -55,18 +55,29 @@ public class FilaExtracaoService {
         return tx.execute(s -> {
             var esgotadas = jdbc.sql("""
                     UPDATE tarefa_extracao SET estado='FALHOU',token=NULL,reservado_ate=NULL,finalizado_em=now(),detalhe='Tentativas esgotadas após interrupção.'
-                    WHERE estado='EM_ANDAMENTO' AND reservado_ate<=now() AND tentativas>=:max RETURNING id
+                    WHERE id IN (SELECT id FROM tarefa_extracao WHERE estado='EM_ANDAMENTO' AND reservado_ate<=now() AND tentativas>=:max
+                                 FOR UPDATE SKIP LOCKED) RETURNING id
                     """).param("max",maxTentativas).query(UUID.class).list();
             esgotadas.forEach(id -> evento(id,"FALHOU","Tentativas esgotadas após interrupção."));
+            // Dois ramos, cada um sobre o seu índice parcial (pendentes por disponibilidade, reservas por vencimento),
+            // em vez de um OR que obrigaria a varrer ambos. FOR UPDATE não vale com UNION; a exclusão vem do UPDATE,
+            // que reavalia o estado depois de esperar: quem perde a corrida não reserva nada neste ciclo.
             return jdbc.sql("""
-                    WITH proxima AS (
-                        SELECT id FROM tarefa_extracao WHERE tentativas<:max AND
-                            ((estado='PENDENTE' AND disponivel_em<=now()) OR (estado='EM_ANDAMENTO' AND reservado_ate<=now()))
-                        ORDER BY criado_em,id FOR UPDATE SKIP LOCKED LIMIT 1
-                    )
+                    WITH candidatas AS (
+                        (SELECT id, disponivel_em AS quando, criado_em FROM tarefa_extracao
+                         WHERE estado='PENDENTE' AND tentativas<:max AND disponivel_em<=now()
+                         ORDER BY disponivel_em,criado_em,id LIMIT 1)
+                        UNION ALL
+                        (SELECT id, reservado_ate AS quando, criado_em FROM tarefa_extracao
+                         WHERE estado='EM_ANDAMENTO' AND reservado_ate<=now() AND tentativas<:max
+                         ORDER BY reservado_ate,id LIMIT 1)
+                    ), proxima AS (SELECT id FROM candidatas ORDER BY quando,criado_em,id LIMIT 1)
                     UPDATE tarefa_extracao t SET estado='EM_ANDAMENTO',tentativas=tentativas+1,token=gen_random_uuid(),
                         reservado_ate=now()+make_interval(secs=>:prazo),detalhe=NULL
-                    FROM proxima p WHERE t.id=p.id RETURNING t.*
+                    FROM proxima p WHERE t.id=p.id
+                      AND ((t.estado='PENDENTE' AND t.disponivel_em<=now()) OR (t.estado='EM_ANDAMENTO' AND t.reservado_ate<=now()))
+                      AND t.tentativas<:max
+                    RETURNING t.*
                     """).param("max",maxTentativas).param("prazo",reservaSegundos)
                     .query((rs,row) -> new Reserva(ler(rs,row),rs.getObject("token",UUID.class))).optional()
                     .map(reserva -> { evento(reserva.tarefa().id(),"EM_ANDAMENTO","Tentativa "+reserva.tarefa().tentativas()); return reserva; });
