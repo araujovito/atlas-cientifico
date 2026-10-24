@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import tools.jackson.databind.ObjectMapper;
-import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -24,17 +23,17 @@ import org.springframework.web.server.ResponseStatusException;
 public class ProcessadorDocumentoService {
 
 	private static final Logger log = LoggerFactory.getLogger(ProcessadorDocumentoService.class);
-	private static final String VERSAO_PROCESSADOR = "pdfbox-3.0.8-v1";
+	public static final String VERSAO_PROCESSADOR = "pdfbox-3.0.8-v1";
 	private final JdbcClient jdbc;
 	private final UploadProperties properties;
-	private final ExtratorTextoPdf extrator;
+	private final ExtratorPdfIsolado extrator;
 	private final TransactionTemplate transacoes;
 	private final ObjectMapper objectMapper;
 
 	public ProcessadorDocumentoService(
 			JdbcClient jdbc,
 			UploadProperties properties,
-			ExtratorTextoPdf extrator,
+			ExtratorPdfIsolado extrator,
 			TransactionTemplate transacoes,
 			ObjectMapper objectMapper) {
 		this.jdbc = jdbc;
@@ -69,10 +68,12 @@ public class ProcessadorDocumentoService {
 		ResultadoExtracaoPdf extracao;
 		try {
 			extracao = extrator.extrair(caminho, properties.paginasMaximas());
+		} catch (PrazoPdfExcedidoException e) {
+			throw new ResponseStatusException(HttpStatus.GATEWAY_TIMEOUT,e.getMessage(),e);
 		} catch (LimiteDePaginasExcedidoException e) {
 			log.warn("Documento {} recusado: {}", documentoId, e.getMessage());
 			throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage(), e);
-		} catch (InvalidPasswordException e) {
+		} catch (PdfProtegidoException e) {
 			log.warn("Documento {} protegido por senha", documentoId);
 			throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
 				"O PDF está protegido por senha; envie uma versão sem proteção.", e);

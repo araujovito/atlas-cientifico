@@ -5,12 +5,19 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import dev.atlas.documentos.UploadProperties;
 import dev.atlas.fontes.openalex.OpenAlexProperties;
+import dev.atlas.documentos.ProcessamentoProperties;
+import dev.atlas.documentos.PdfWorkerMain;
 
 @SpringBootApplication
-@EnableConfigurationProperties({UploadProperties.class, OpenAlexProperties.class})
+@EnableConfigurationProperties({UploadProperties.class, OpenAlexProperties.class, ProcessamentoProperties.class})
 public class AtlasApplication {
 
 	public static void main(String[] args) {
+		if (args.length > 0 && "--atlas-pdf-worker".equals(args[0])) {
+			try { PdfWorkerMain.executar(java.util.Arrays.copyOfRange(args,1,args.length)); }
+			catch (Exception e) { System.exit(2); }
+			return;
+		}
 		SpringApplication.run(AtlasApplication.class, args);
 	}
 
