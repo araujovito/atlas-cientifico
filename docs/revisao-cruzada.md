@@ -98,3 +98,28 @@ O trecho com quebra de linha foi corrigido em `f537bd6`. Restam as decisões adi
 A implementação avançou até catálogo/coleções, fila e recuperação, parser isolado, revisão append-only, comparação, grafo de citações, operação Docker e telemetria local. O autor autorizou decisões e depois fixou orçamento zero. A sequência de commits, critérios e limites está em `handoff-codex.md` e `roteiro.md`; **esta nota não é uma revisão do Claude**.
 
 Evidência final local: 117 testes passaram em 2026-10-24. Smoke do JAR empacotado confirmou idempotência sob oito uploads concorrentes, tarefa durável com consumidor parado, retomada e recepção de span no Jaeger. Referência científica independente, precisão de IA, carga representativa, contas/S3, AWS/CD e CI remoto permanecem sem comprovação. A extração ainda é manual; o avaliador offline e sua fixture negativa não equivalem a um modelo de extração.
+
+### Revisão independente da implementação seguinte — 2026-10-24 (segundo agente)
+
+Escopo: os 23 commits locais de `43a228d` a `d9a3d08`, lidos antes do push. Foram lidos por inteiro `ExtratorPdfIsolado`, `PdfWorkerMain`, `FilaExtracaoService`, `FilaExtracaoWorker`, as migrações V10–V14, `OpenAlexClient`, `CatalogoService`, `CitacaoService`, `RevisaoService`, `ColecaoController`, `OperacaoController`, o diff de `ProcessadorDocumentoService`, o `compose.yml`, o `Dockerfile` e o diff de `pom.xml`, `application.properties` e do CI.
+
+Executado nesta revisão: compilação e os testes que não dependem de banco (`LocalizadorDeTrechoTest`, `OpenAlexClientTest`, `AvaliadorCamposTest`, `ExtratorPdfIsoladoTest`, `CatalogoControllerTest`), todos aprovados. A suíte completa com Testcontainers e Chromium **não foi executada nesta máquina**; a verificação de integração desta rodada é o CI do GitHub após o push.
+
+Verificado e sem alteração necessária:
+
+- **Parser isolado.** O subprocesso recebe ambiente vazio, prazo com `destroyForcibly`, `-Xmx` próprio, saída limitada a 32 MiB e semáforo de 2 execuções; não abre conexão com o banco. A chave de API do servidor não chega a ele.
+- **Fila.** A reserva usa `FOR UPDATE SKIP LOCKED`; concluir e falhar exigem o token e a reserva ainda válida, de modo que um worker que perdeu a reserva não sobrescreve o resultado do outro. O construtor recusa configuração em que a reserva é menor que o prazo do PDF.
+- **OpenAlex.** Sem redirecionamento, o DOI e os identificadores entram só por caminho codificado ou por expressão regular, a resposta é validada contra o que foi consultado e há limite de taxa por instância.
+- **Interface.** Não há `innerHTML`, `outerHTML` nem `eval` nos scripts estáticos; os dois `href` com dados externos usam `encodeURIComponent` sobre domínio fixo.
+- **Implantação.** `ATLAS_CHAVE_API` é obrigatória no compose, a porta fica em 127.0.0.1, o sistema de arquivos é somente leitura, as capacidades foram removidas e o worker monta o volume de documentos como leitura.
+
+Limites observados, não corrigidos (comportamento aceitável hoje, a decidir se crescer):
+
+1. **Reserva perdida deixa uma execução órfã.** Se o processamento termina depois do fim da reserva, `concluir` devolve falso e outra tentativa cria nova execução. As gravações são idempotentes, mas a execução anterior permanece no banco sem tarefa que a aponte.
+2. **Consulta ao OpenAlex acima do limite local responde 429 em vez de esperar.** Evita fila de requisições na memória, mas a interface precisa tratar o erro.
+3. **`retentar` não limita quantas vezes o operador reativa uma tarefa.** O contador de tentativas volta a zero.
+4. **Listagens do catálogo fazem três consultas por obra** (até 100 obras por página). Não há medição de carga que indique problema.
+5. **Memória por contêiner.** O processo principal usa `-Xmx384m` e o parser mais 256 MiB, dentro do limite de 1 GiB do compose; a soma com metaspace e pilhas não foi medida.
+6. **A versão do Playwright (1.63.0) e a do `exec-maven-plugin` só foram confirmadas pela resolução local do Maven**; o passo novo do CI ainda não rodou.
+
+Nenhuma alteração de código foi feita nesta revisão. Isto não prova ausência de defeitos: o que não foi lido (testes, `index.html` e os scripts além da busca por padrões de risco) não foi avaliado.
