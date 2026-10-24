@@ -159,3 +159,8 @@ Guardar PDFs de terceiros é uma coisa; devolvê-los a outras pessoas é outra. 
 Isto **não** é carga realista: é um instante, um PDF sintético de menos de 1 KiB, sem várias contas nem PDFs grandes, e sem o pico do parser em subprocesso (o `-Xmx` do parser é à parte). Serve para dizer que o compose sobe e que os limites de 1 GiB não estão no limite com tráfego baixo.
 
 Continua sem medição: memória com PDFs de 20 MiB e várias extrações simultâneas, desempenho das listagens com milhares de obras, custo de hospedagem e tráfego real. Todos os limites e cotas deste documento são escolhas do revisor.
+
+## Navegadores
+
+Chromium e Firefox passam em todos os testes de navegador no CI. **WebKit (base do Safari) não passa:** a primeira execução ficou presa até o limite de 20 minutos e foi cancelada, então o job `navegadores (webkit)` está com `continue-on-error`. A causa **não foi investigada**. A hipótese mais provável (não confirmada) é que o WebKit descarta o cookie de sessão `__Host-`/`Secure` em `http://127.0.0.1`, o que deixaria todo login sem efeito; em produção, com TLS, o cookie é aceito. Antes de dizer que o site funciona no Safari é preciso reproduzir e testar com HTTPS.
+
