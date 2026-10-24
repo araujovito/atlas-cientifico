@@ -162,5 +162,10 @@ Continua sem medição: memória com PDFs de 20 MiB e várias extrações simult
 
 ## Navegadores
 
-Chromium e Firefox passam em todos os testes de navegador no CI. **WebKit (base do Safari) não passa:** a primeira execução ficou presa até o limite de 20 minutos e foi cancelada, então o job `navegadores (webkit)` está com `continue-on-error`. A causa **não foi investigada**. A hipótese mais provável (não confirmada) é que o WebKit descarta o cookie de sessão `__Host-`/`Secure` em `http://127.0.0.1`, o que deixaria todo login sem efeito; em produção, com TLS, o cookie é aceito. Antes de dizer que o site funciona no Safari é preciso reproduzir e testar com HTTPS.
+Chromium, Firefox e WebKit passam nos 9 testes de navegador no CI (job `navegadores`).
 
+**Achado do WebKit (Safari), investigado em 2026-10-24 com a classe de diagnóstico `DiagnosticoNavegadorTest`:** o servidor envia `Set-Cookie: __Host-atlas-sessao=...; Secure; HttpOnly; SameSite=Strict` e o WebKit 26.6 **não guarda** o cookie quando a página é `http://127.0.0.1` (`context.cookies()` fica vazio). O cadastro seguinte volta 401 e nenhum teste passa. Chromium e Firefox guardam o mesmo cookie por tratarem `localhost` como contexto seguro; o WebKit exige HTTPS de verdade.
+
+- **Em produção com TLS isto não acontece**, mas **não foi testado**: o WebKit foi exercitado só com o cookie sem `Secure`. Antes de afirmar que o site funciona no Safari com HTTPS, teste-o por trás do proxy com um certificado válido.
+- **Desenvolvimento no Safari sem HTTPS:** `ATLAS_CONTAS_COOKIE_SEGURO=false` (propriedade `atlas.contas.cookie-seguro`) emite o cookie `atlas-sessao` sem `Secure` e sem o prefixo `__Host-` (que só existe com `Secure`). A aplicação registra um aviso ao iniciar. **Nunca use em produção**: sem `Secure` o cookie viaja em HTTP puro.
+- Para repetir a investigação: `./mvnw test -Dtest=DiagnosticoNavegadorTest -Datlas.diagnostico=true -Datlas.navegador=webkit`.

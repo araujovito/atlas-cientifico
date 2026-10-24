@@ -83,13 +83,11 @@ jobs:
       - name: Smoke do compose (API, worker e PostgreSQL)
         run: node deploy/smoke.mjs
 
-  # Repete a classe de testes de navegador em outros motores. O cookie de sessão é __Host-/Secure, e é justamente
-  # no Safari (WebKit) que ele costuma se comportar diferente; este job existe para isso ficar à vista.
+  # Repete a classe de testes de navegador em outros motores. No WebKit (Safari) os testes rodam com
+  # atlas.contas.cookie-seguro=false, porque ele não guarda cookie Secure em http://127.0.0.1 (veja docs/contas-e-hospedagem.md).
   navegadores:
     runs-on: ubuntu-latest
     timeout-minutes: 12
-    # WebKit ainda não passa (a primeira execução estourou o prazo); não bloqueia enquanto a causa não é investigada.
-    continue-on-error: ${{ matrix.motor == 'webkit' }}
     strategy:
       fail-fast: false
       matrix:
@@ -110,12 +108,6 @@ jobs:
         run: |
           chmod +x mvnw
           ./mvnw --batch-mode --no-transfer-progress exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install --with-deps ${{ matrix.motor }}"
-
-      - name: Diagnóstico do navegador (${{ matrix.motor }})
-        working-directory: api
-        continue-on-error: true
-        timeout-minutes: 5
-        run: ./mvnw --batch-mode --no-transfer-progress test -Dtest=DiagnosticoNavegadorTest -Datlas.diagnostico=true -Datlas.navegador=${{ matrix.motor }} | grep -E "DIAGNOSTICO|Tests run:|ERROR" || true
 
       - name: Testes de navegador em ${{ matrix.motor }}
         working-directory: api
