@@ -15,7 +15,7 @@ Objetivo: importar um PDF que a pessoa pode processar, extrair texto por página
 | 5 | Execução de processamento com chave de idempotência (hash + versão do processador) | Reprocessar devolve a execução existente e não duplica páginas; medidas serão cobertas quando a etapa 6 for implementada | testado |
 | 6 | Registro de medidas candidatas sem chamada paga | Testes de integração confirmam página, trecho literal e offsets Unicode de início inclusivo/fim exclusivo, preservação de valor/unidade/condições e rejeição de evidência inexistente | testado |
 | 7 | Endpoint e tela mínima que mostram uma medida e o trecho de origem | API lista medida, página, trecho e offsets; tela navega à página e destaca a evidência. Evidências anteriores à V6 mantêm offsets nulos | implementado |
-| 8 | CI no GitHub Actions rodando os testes | Workflow configurado para push e pull request em `main`; aguarda execução no GitHub | implementado |
+| 8 | CI no GitHub Actions rodando os testes | Workflow configurado para push e pull request em `main`; execuções verdes no GitHub em `f897ff0`, `95eb6f5` e `d47df5d` | testado |
 
 Dependências: Docker (presente), JDK 21 (instalado em `~/.local/jdk`, ver `docs/ambiente.md`).
 
