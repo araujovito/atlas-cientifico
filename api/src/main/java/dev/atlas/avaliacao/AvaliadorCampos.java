@@ -36,7 +36,10 @@ public final class AvaliadorCampos {
             boolean v=Objects.equals(esperado.valor(),obtido.valor()),u=Objects.equals(esperado.unidade(),obtido.unidade());
             boolean e=Objects.equals(esperado.pagina(),obtido.pagina()) && Objects.equals(esperado.trecho(),obtido.trecho());
             boolean s=esperado.estado().equals(obtido.estado()),c=esperado.condicoes().equals(obtido.condicoes());
-            if(v) valores++; if(u) unidades++; if(e) evidencias++; if(s) estados++; if(c) condicoes++;
+            // Ausência esperada e obtida tem valor, unidade e evidência nulos: contar isso inflaria os acertos.
+            boolean comConteudo=!esperado.estado().equals("AUSENTE");
+            if(v&&comConteudo) valores++; if(u&&comConteudo) unidades++; if(e&&comConteudo) evidencias++;
+            if(s) estados++; if(c) condicoes++;
             if(v&&u&&e&&s&&c) { completos++; if(esperado.estado().equals("AUSENTE")) ausencias++; }
         }
         return new Relatorio(gold.size(),output.size(),associados,completos,valores,unidades,evidencias,estados,condicoes,

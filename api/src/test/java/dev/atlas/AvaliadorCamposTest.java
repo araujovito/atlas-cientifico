@@ -28,6 +28,9 @@ class AvaliadorCamposTest {
     @Test void ausenciaExplicitaNaoEquivaleACampoOmitido() {
         var a=new Campo(new Chave("b".repeat(64),"A","retencao"),"AUSENTE",null,null,null,null,Map.of());
         assertThat(avaliador.avaliar(List.of(a),List.of(a)).ausenciasCorretas()).isEqualTo(1);
+        var par=avaliador.avaliar(List.of(a),List.of(a));
+        assertThat(par.valoresCorretos()).isZero(); assertThat(par.unidadesCorretas()).isZero(); assertThat(par.evidenciasCorretas()).isZero();
+        assertThat(par.estadosCorretos()).isEqualTo(1);
         var omitido=avaliador.avaliar(List.of(a),List.of());
         assertThat(omitido.ausenciasCorretas()).isZero(); assertThat(omitido.coberturaExata()).isZero();
         assertThat(omitido.precisaoExata()).isNull();
