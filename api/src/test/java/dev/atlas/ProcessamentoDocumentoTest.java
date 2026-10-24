@@ -1,0 +1,138 @@
+package dev.atlas;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import java.io.ByteArrayOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.UUID;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+@Import(TestcontainersConfiguration.class)
+@SpringBootTest(properties = "atlas.documentos.diretorio=${java.io.tmpdir}/atlas-processamento-test")
+@AutoConfigureMockMvc
+class ProcessamentoDocumentoTest {
+
+	@Autowired MockMvc mvc;
+	@Autowired JdbcClient jdbc;
+	@Autowired ObjectMapper objectMapper;
+
+	@Test
+	void processaPdfArmazenadoEPersisteTextoPorPagina() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("Metrica experimental 125 mAh por grama", "Condicao: 25 graus"));
+
+		MvcResult resposta = mvc.perform(post("/api/documentos/{id}/extracoes", documento))
+				.andExpect(status().isOk()).andReturn();
+		JsonNode resultado = objectMapper.readTree(resposta.getResponse().getContentAsString());
+		UUID execucao = UUID.fromString(resultado.get("execucaoId").asText());
+
+		assertThat(resultado.get("estado").asText()).isEqualTo("CONCLUIDO");
+		assertThat(resultado.get("paginas").asInt()).isEqualTo(2);
+		assertThat(resultado.get("reutilizada").asBoolean()).isFalse();
+		assertThat(jdbc.sql("SELECT texto FROM pagina_texto WHERE execucao_id=:id AND numero=1")
+				.param("id", execucao).query(String.class).single()).contains("125 mAh por grama");
+		assertThat(jdbc.sql("SELECT texto FROM pagina_texto WHERE execucao_id=:id AND numero=2")
+				.param("id", execucao).query(String.class).single()).contains("25 graus");
+		assertThat(jdbc.sql("SELECT estado FROM execucao_processamento WHERE id=:id")
+				.param("id", execucao).query(String.class).single()).isEqualTo("CONCLUIDO");
+	}
+
+	@Test
+	void pdfSemTextoCriaExecucaoPrecisaOcr() throws Exception {
+		UUID documento = enviarPdf(pdfSemTexto());
+
+		MvcResult resposta = mvc.perform(post("/api/documentos/{id}/extracoes", documento))
+				.andExpect(status().isOk()).andReturn();
+		JsonNode resultado = objectMapper.readTree(resposta.getResponse().getContentAsString());
+		UUID execucao = UUID.fromString(resultado.get("execucaoId").asText());
+
+		assertThat(resultado.get("estado").asText()).isEqualTo("PRECISA_OCR");
+		assertThat(resultado.get("paginas").asInt()).isEqualTo(1);
+		assertThat(jdbc.sql("SELECT texto FROM pagina_texto WHERE execucao_id=:id AND numero=1")
+				.param("id", execucao).query(String.class).single()).isBlank();
+	}
+
+	@Test
+	void reprocessarMesmoPdfNaoCriaOutraExecucaoNemDuplicaPaginas() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("Resultado idempotente"));
+		JsonNode primeira = processar(documento);
+		Path arquivo = Path.of(jdbc.sql("SELECT chave_armazenamento FROM versao_documento WHERE id=:id")
+				.param("id", documento).query(String.class).single());
+		Files.delete(arquivo);
+		JsonNode segunda = processar(documento);
+
+		assertThat(segunda.get("execucaoId").asText()).isEqualTo(primeira.get("execucaoId").asText());
+		assertThat(segunda.get("reutilizada").asBoolean()).isTrue();
+		assertThat(jdbc.sql("SELECT count(*) FROM execucao_processamento WHERE versao_documento_id=:id")
+				.param("id", documento).query(Long.class).single()).isEqualTo(1);
+		assertThat(jdbc.sql("""
+				SELECT count(*) FROM pagina_texto p
+				JOIN execucao_processamento e ON e.id=p.execucao_id
+				WHERE e.versao_documento_id=:id
+				""").param("id", documento).query(Long.class).single()).isEqualTo(1);
+	}
+
+	@Test
+	void documentoInexistenteRetornaNaoEncontrado() throws Exception {
+		mvc.perform(post("/api/documentos/{id}/extracoes", UUID.randomUUID()))
+				.andExpect(status().isNotFound());
+	}
+
+	private UUID enviarPdf(byte[] conteudo) throws Exception {
+		var arquivo = new MockMultipartFile("arquivo", "artigo.pdf", "application/pdf", conteudo);
+		MvcResult resposta = mvc.perform(multipart("/api/documentos").file(arquivo)
+				.param("autorizacaoConfirmada", "true"))
+			.andExpect(status().isOk()).andReturn();
+		return UUID.fromString(objectMapper.readTree(resposta.getResponse().getContentAsString()).get("id").asText());
+	}
+
+	private JsonNode processar(UUID documento) throws Exception {
+		MvcResult resposta = mvc.perform(post("/api/documentos/{id}/extracoes", documento))
+				.andExpect(status().isOk()).andReturn();
+		return objectMapper.readTree(resposta.getResponse().getContentAsString());
+	}
+
+	private static byte[] pdfComPaginas(String... textos) throws Exception {
+		try (PDDocument documento = new PDDocument(); ByteArrayOutputStream saida = new ByteArrayOutputStream()) {
+			for (String texto : textos) {
+				PDPage pagina = new PDPage();
+				documento.addPage(pagina);
+				try (PDPageContentStream conteudo = new PDPageContentStream(documento, pagina)) {
+					conteudo.beginText();
+					conteudo.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+					conteudo.newLineAtOffset(72, 720);
+					conteudo.showText(texto);
+					conteudo.endText();
+				}
+			}
+			documento.save(saida);
+			return saida.toByteArray();
+		}
+	}
+
+	private static byte[] pdfSemTexto() throws Exception {
+		try (PDDocument documento = new PDDocument(); ByteArrayOutputStream saida = new ByteArrayOutputStream()) {
+			documento.addPage(new PDPage());
+			documento.save(saida);
+			return saida.toByteArray();
+		}
+	}
+}
