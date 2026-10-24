@@ -44,11 +44,6 @@ public class UploadDocumentoService {
 		}
 		validarPdf(arquivo);
 
-		String nome = StringUtils.cleanPath(StringUtils.getFilename(arquivo.getOriginalFilename()) == null
-				? "documento.pdf" : StringUtils.getFilename(arquivo.getOriginalFilename()));
-		if (nome.contains("..") || nome.isBlank()) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nome de arquivo inválido.");
-		}
 		String tituloSeguro = titulo == null || titulo.isBlank() ? null : titulo.trim();
 		String hash = sha256(arquivo);
 		var existente = jdbc.sql("SELECT id, tamanho_bytes, coletado_em FROM versao_documento WHERE sha256 = :hash")
