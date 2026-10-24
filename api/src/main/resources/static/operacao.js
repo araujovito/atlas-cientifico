@@ -1,6 +1,9 @@
 document.querySelector('#operation-refresh').onclick = async () => {
   const status = document.querySelector('#operation-status');
   const failures = document.querySelector('#operation-failures');
+  const refresh = document.querySelector('#operation-refresh');
+  if (refresh.disabled) return;
+  refresh.disabled = true;
   failures.replaceChildren();
   try {
     const summary = await request('/api/operacao');
@@ -18,4 +21,5 @@ document.querySelector('#operation-refresh').onclick = async () => {
       article.append(text,retry); failures.append(article);
     }
   } catch(error) { status.textContent = error.message; }
+  finally { refresh.disabled = false; }
 };

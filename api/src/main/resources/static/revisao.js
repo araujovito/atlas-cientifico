@@ -72,8 +72,9 @@ document.querySelector('#compare-measures').onclick = async event => {
         source.onclick = async () => {
           if (document.querySelector('#upload-button').disabled || document.querySelector('#save-button').disabled) return;
           document.querySelector('#upload-button').disabled = true; document.querySelector('#save-button').disabled = true;
+          const anterior = { documento: documentId, execucao: executionId };
           try { documentId = r.documentoId; cancelarRevisao(); await mostrarExecucao({ execucaoId: r.execucaoId, estado: 'CONCLUIDO' }); showEvidence(evidence); }
-          catch (error) { showStatus(error.message,true); }
+          catch (error) { documentId = anterior.documento; executionId = anterior.execucao; showStatus(error.message,true); }
           finally { document.querySelector('#upload-button').disabled = false; document.querySelector('#save-button').disabled = false; }
         };
         cell.append(source);
