@@ -46,9 +46,7 @@ public class SessaoService {
     }
     public Criada cadastrar(String email,String senha,Sessao anterior) {
         String normal=email(email); validarSenha(senha);
-        boolean permitido=politica.cadastro()==PoliticaContas.Cadastro.ABERTO
-                || politica.cadastro()==PoliticaContas.Cadastro.LISTA && politica.emailsPermitidos().stream().anyMatch(e->e.equalsIgnoreCase(normal));
-        if(!permitido) throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Cadastro não disponível para este e-mail.");
+        if(!politica.permite(normal)) throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Cadastro não disponível para este e-mail.");
         String senhaHash=encoder.encode(senha);
         return tx.execute(s->{
             var id=jdbc.sql("INSERT INTO usuario(email,senha_hash) VALUES (:e,:h) ON CONFLICT(email) DO NOTHING RETURNING id")

@@ -10,7 +10,7 @@ import {fileURLToPath} from 'node:url';
 const root = fileURLToPath(new URL('../',import.meta.url));
 const project = `atlas-smoke-${Date.now()}-${process.pid}`;
 const telemetry = process.env.ATLAS_SMOKE_TELEMETRIA === '1';
-const env = {...process.env, ATLAS_DB_PASSWORD:randomBytes(24).toString('hex'), ATLAS_CHAVE_API:randomBytes(24).toString('hex'), ATLAS_PORT:process.env.ATLAS_SMOKE_PORT || '18081', ATLAS_JAEGER_PORT:process.env.ATLAS_SMOKE_JAEGER_PORT || '18086'};
+const env = {...process.env, ATLAS_CADASTRO:'ABERTO', ATLAS_DB_PASSWORD:randomBytes(24).toString('hex'), ATLAS_CHAVE_API:randomBytes(24).toString('hex'), ATLAS_PORT:process.env.ATLAS_SMOKE_PORT || '18081', ATLAS_JAEGER_PORT:process.env.ATLAS_SMOKE_JAEGER_PORT || '18086'};
 const dir = await mkdtemp(join(tmpdir(),'atlas-smoke-'));
 const fixture = join(dir,'synthetic.pdf');
 const compose = (...args) => {
@@ -20,16 +20,23 @@ const compose = (...args) => {
   return r.stdout;
 };
 const base = `http://127.0.0.1:${env.ATLAS_PORT}`;
+let cookie,csrf;
+const accountPassword=randomBytes(24).toString('hex');
 const request = async (path,options={}) => {
-  const r = await fetch(base+path,{...options,headers:{'X-Atlas-Chave':env.ATLAS_CHAVE_API,...options.headers},signal:AbortSignal.timeout(10000)});
+  const r = await fetch(base+path,{...options,headers:{...(cookie?{Cookie:cookie,'X-Atlas-CSRF':csrf || ''}:{}),...options.headers},signal:AbortSignal.timeout(10000)});
+  const setCookie=r.headers.get('set-cookie');if(setCookie) cookie=setCookie.split(';')[0];
   if(!r.ok) throw new Error(`${path}: HTTP ${r.status}: ${await r.text()}`);
-  return r.json();
+  const json=await r.json();if(json.csrfToken) csrf=json.csrfToken;
+  return json;
 };
 const wait = ms => new Promise(resolve=>setTimeout(resolve,ms));
 try {
   const generated = spawnSync('./mvnw',['--batch-mode','--no-transfer-progress','exec:java','-Dexec.mainClass=dev.atlas.FixturePdfMain',`-Dexec.args=${fixture}`],{cwd:join(root,'api'),env,encoding:'utf8'});
   if(generated.status!==0) throw new Error(`Fixture falhou: ${generated.stderr}\n${generated.stdout}`);
   compose('up','-d','--wait','--wait-timeout','180');
+  await request('/api/auth/sessao');
+  await request('/api/auth/cadastro',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email:`${project}@example.test`,senha:accountPassword})});
   const bytes = await readFile(fixture);
   const samples = [];
   const upload = async () => {
@@ -67,7 +74,7 @@ try {
       if(!response.ok) throw new Error('Jaeger indisponível.');
       const traces=await response.json();
       const raw=JSON.stringify(traces);
-      if(raw.includes(env.ATLAS_CHAVE_API) || raw.includes(env.ATLAS_DB_PASSWORD) || raw.includes('125 mAh/g'))
+      if(raw.includes(env.ATLAS_CHAVE_API) || raw.includes(env.ATLAS_DB_PASSWORD) || raw.includes(accountPassword) || raw.includes(cookie) || raw.includes(csrf) || raw.includes('125 mAh/g'))
         throw new Error('Dado privado encontrado no coletor de traços.');
       traceVerified=traces.data?.some(t=>t.spans?.some(s=>s.operationName==='atlas.pdf.execucao')) || false;
       if(traceVerified) break;

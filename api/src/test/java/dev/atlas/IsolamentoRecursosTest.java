@@ -69,6 +69,8 @@ class IsolamentoRecursosTest {
             String path=path(rota,f);
             if(rota.padrao().endsWith("/retentar")) jdbc.sql("UPDATE tarefa_extracao SET estado='FALHOU',finalizado_em=now() WHERE id=:id").param("id",f.tarefa()).update();
             String body=rota.padrao().endsWith("/revisoes")?"{\"motivo\":\"Conferência\",\"versaoEsperada\":0,\"corrigida\":"+MEDIDA+"}":MEDIDA;
+            if(!rota.metodo().equals("GET")) mvc.perform(request(HttpMethod.valueOf(rota.metodo()),path).cookie(a.cookie())
+                    .contentType("application/json").content(body)).andExpect(status().isForbidden());
             mvc.perform(com(request(HttpMethod.valueOf(rota.metodo()),path),b).contentType("application/json").content(body))
                     .andExpect(status().isNotFound());
             mvc.perform(com(request(HttpMethod.valueOf(rota.metodo()),path),a).contentType("application/json").content(body))
@@ -128,6 +130,18 @@ class IsolamentoRecursosTest {
         String forjada=MEDIDA.substring(0,MEDIDA.length()-1)+",\"usuario_id\":\""+b.id()+"\"}";
         mvc.perform(com(post("/api/documentos/"+f.doc()+"/extracoes/"+f.exec()+"/medidas"),a).contentType("application/json").content(forjada))
                 .andExpect(status().isBadRequest());
+    }
+    @Test void criacaoUsaDonoDaSessaoMesmoComOutroDonoNoPedido() throws Exception {
+        var response=mvc.perform(com(multipart("/api/documentos").file(new MockMultipartFile("arquivo","f.pdf","application/pdf",
+                ("%PDF-forjado-"+UUID.randomUUID()).getBytes(StandardCharsets.UTF_8))).param("autorizacaoConfirmada","true").param("dono_id",a.id().toString()),b))
+                .andExpect(status().isOk()).andReturn().getResponse();
+        UUID doc=UUID.fromString(mapper.readTree(response.getContentAsString()).get("id").asText());
+        assertThat(jdbc.sql("SELECT dono_id FROM versao_documento WHERE id=:d").param("d",doc).query(UUID.class).single()).isEqualTo(b.id());
+        var collection=mvc.perform(com(post("/api/colecoes"),b).contentType("application/json")
+                .content("{\"nome\":\"Minha\",\"dono_id\":\""+a.id()+"\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse();
+        UUID id=UUID.fromString(mapper.readTree(collection.getContentAsString()).get("id").asText());
+        assertThat(jdbc.sql("SELECT dono_id FROM colecao WHERE id=:c").param("c",id).query(UUID.class).single()).isEqualTo(b.id());
     }
     private String path(Rota r,Fixture f){
         UUID id=r.padrao().startsWith("/api/colecoes")?f.colecao():r.padrao().startsWith("/api/medidas")?f.medida():r.padrao().startsWith("/api/catalogo")?f.obra():f.tarefa();
