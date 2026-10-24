@@ -163,6 +163,13 @@
     <p id="citation-status" role="status" aria-live="polite"></p><div id="citation-graph"></div><div id="citation-timeline"></div>
     <button id="citation-previous" type="button" disabled>Referências anteriores</button><button id="citation-next" type="button" disabled>Mais referências</button>
   </section>
+  <section>
+    <h2>Operação da fila</h2>
+    <p class="muted">Estado persistido no banco. A reativação preserva o histórico e permite novas tentativas. Não equivale a revisão do conteúdo científico.</p>
+    <button id="operation-refresh" type="button">Atualizar operação</button>
+    <p id="operation-status" role="status"></p>
+    <div id="operation-failures"></div>
+  </section>
 </main>
 <script>
   const statusBox = document.querySelector('#status');
@@ -446,5 +453,6 @@
 <script src="/catalogo.js"></script>
 <script src="/revisao.js"></script>
 <script src="/citacoes.js"></script>
+<script src="/operacao.js"></script>
 </body>
 </html>

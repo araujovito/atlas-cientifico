@@ -1,5 +1,7 @@
 package dev.atlas.documentos;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,8 +15,11 @@ public class FilaExtracaoWorker {
     private final FilaExtracaoService fila;
     private final ProcessadorDocumentoService processador;
     private final boolean ativa;
+    private final MeterRegistry metrics;
     public FilaExtracaoWorker(FilaExtracaoService fila, ProcessadorDocumentoService processador,
-            @Value("${atlas.fila.ativa:true}") boolean ativa) { this.fila=fila; this.processador=processador; this.ativa=ativa; }
+            @Value("${atlas.fila.ativa:true}") boolean ativa, MeterRegistry metrics) {
+        this.fila=fila; this.processador=processador; this.ativa=ativa; this.metrics=metrics;
+    }
 
     @Scheduled(fixedDelayString="${atlas.fila.intervalo-ms:1000}",initialDelayString="${atlas.fila.inicio-ms:1000}")
     public void tick() { if(ativa) executarUma(); }
@@ -23,13 +28,22 @@ public class FilaExtracaoWorker {
         var proxima=fila.reservar();
         if(proxima.isEmpty()) return false;
         var reserva=proxima.get();
-        try { fila.concluir(reserva,processador.processar(reserva.tarefa().documentoId())); }
+        var tempo=Timer.start(metrics);
+        String resultado="erro_temporario";
+        try {
+            resultado=fila.concluir(reserva,processador.processar(reserva.tarefa().documentoId())) ? "concluido" : "reserva_perdida";
+        }
         catch(ResponseStatusException e) {
             int status=e.getStatusCode().value();
-            fila.falhar(reserva,e.getReason()==null?"Falha no processamento.":e.getReason(),status>=400 && status<500 && status!=429);
+            boolean permanente=status>=400 && status<500 && status!=429;
+            resultado=permanente ? "erro_permanente" : "erro_temporario";
+            fila.falhar(reserva,e.getReason()==null?"Falha no processamento.":e.getReason(),permanente);
         } catch(RuntimeException e) {
             log.warn("Falha temporária na tarefa {}",reserva.tarefa().id(),e);
             fila.falhar(reserva,"Falha temporária no processamento.",false);
+        } finally {
+            // Sem IDs, textos ou DOIs nos rótulos: cardinalidade limitada por construção.
+            tempo.stop(Timer.builder("atlas.pdf.tentativa").tag("resultado",resultado).register(metrics));
         }
         return true;
     }

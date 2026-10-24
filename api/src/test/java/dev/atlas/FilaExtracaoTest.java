@@ -30,6 +30,7 @@ class FilaExtracaoTest {
     @Autowired FilaExtracaoWorker worker;
     @Autowired JdbcClient jdbc;
     @Autowired MockMvc mvc;
+    @Autowired io.micrometer.core.instrument.MeterRegistry metrics;
     @MockitoBean ProcessadorDocumentoService processador;
 
     @BeforeEach void limparFilaDesteBancoDeTeste() { jdbc.sql("DELETE FROM tarefa_extracao").update(); }
@@ -63,7 +64,7 @@ class FilaExtracaoTest {
         assertThat(fila.obter(tarefa.id()).estado()).isEqualTo("CONCLUIDO");
     }
 
-    @Test void falhaTemporariaRecuaEAcabaNaFilaDeFalhasComHistorico() {
+    @Test void falhaTemporariaRecuaEAcabaNaFilaDeFalhasComHistorico() throws Exception {
         UUID doc=documento(); var tarefa=fila.agendar(doc);
         when(processador.processar(doc)).thenThrow(new ResponseStatusException(HttpStatus.GATEWAY_TIMEOUT,"Prazo excedido."));
         for(int tentativa=1;tentativa<=3;tentativa++) {
@@ -81,6 +82,17 @@ class FilaExtracaoTest {
         assertThat(fila.retentar(tarefa.id()).tentativas()).isZero();
         assertThat(fila.eventos(tarefa.id())).hasSize(eventos+1);
         verify(processador,times(3)).processar(doc);
+        assertThat(metrics.get("atlas.pdf.tentativa").tag("resultado","erro_temporario").timer().count()).isGreaterThanOrEqualTo(3);
+        mvc.perform(get("/api/operacao/metricas")).andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.resultado == 'erro_temporario')].tentativas").isNotEmpty());
+    }
+
+    @Test void operacaoMostraEstadoDuravelEReservasExpiradas() throws Exception {
+        var tarefa=fila.agendar(documento()); fila.reservar().orElseThrow(); expirar(tarefa.id());
+        mvc.perform(get("/api/operacao")).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].estado").value("EM_ANDAMENTO"))
+                .andExpect(jsonPath("$[0].quantidade").value(1))
+                .andExpect(jsonPath("$[0].reservasExpiradas").value(1));
     }
 
     @Test void erroPermanenteNaoRepeteEInterrupcoesEsgotadasSaoRetidas() {

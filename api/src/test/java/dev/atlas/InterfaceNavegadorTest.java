@@ -106,6 +106,8 @@ class InterfaceNavegadorTest {
 		pagina.locator("#resume-processing").click();
 		assertThat(pagina.locator("#status")).hasText("Texto extraído de 1 página(s).");
 		assertThat(pagina.locator("#measure-list article")).containsText("LiFePO4: capacidade específica");
+		pagina.locator("#operation-refresh").click();
+		assertThat(pagina.locator("#operation-status")).containsText("CONCLUIDO:");
 	}
 
 	@Test
