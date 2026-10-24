@@ -43,6 +43,7 @@ class InterfaceNavegadorTest {
 	private static Browser navegador;
 	private BrowserContext contexto;
 	private Page pagina;
+	private String emailConta;
 	@TempDir Path arquivos;
 	@LocalServerPort int porta;
 	@MockitoBean OpenAlexClient fonte;
@@ -64,7 +65,13 @@ class InterfaceNavegadorTest {
 		contexto = navegador.newContext();
 		pagina = contexto.newPage();
 		pagina.navigate("http://127.0.0.1:" + porta + "/");
-		pagina.locator("#api-key").fill("chave-navegador");
+		emailConta="navegador-"+UUID.randomUUID()+"@example.com";
+		assertThat(pagina.locator("#auth-register")).isEnabled();
+		pagina.locator("#auth-email").fill(emailConta);
+		pagina.locator("#auth-password").fill(ContasTeste.SENHA);
+		pagina.locator("#auth-register").click();
+		assertThat(pagina.locator("#workspace")).isVisible();
+		assertThat(pagina.locator("#account-email")).hasText(emailConta);
 	}
 
 	@AfterEach
@@ -120,15 +127,23 @@ class InterfaceNavegadorTest {
 	}
 
 	@Test
-	void permiteCorrigirChaveDepoisDeUmErroDeAcesso() throws Exception {
-		pagina.locator("#api-key").fill("incorreta");
+	void permiteEntrarNovamenteDepoisDeSairSemManterConteudoDaContaNoDom() throws Exception {
 		enviarPdf("Documento para testar acesso.");
-		assertThat(pagina.locator("#status")).hasText("Chave de acesso ausente ou incorreta.");
-		assertThat(pagina.locator("#extraction")).isHidden();
-		assertThat(pagina.locator("#upload-button")).isEnabled();
-
-		pagina.locator("#api-key").fill("chave-navegador");
-		pagina.locator("#upload-button").click();
+		assertThat(pagina.locator("#page-text")).containsText("Documento para testar acesso.");
+		org.assertj.core.api.Assertions.assertThat((String)pagina.evaluate("document.cookie")).doesNotContain("__Host-atlas-sessao");
+		pagina.locator("#auth-logout").click();
+		assertThat(pagina.locator("#auth-form")).isVisible();
+		assertThat(pagina.locator("#workspace")).isHidden();
+		assertThat(pagina.locator("#page-text")).isEmpty();
+		assertThat(pagina.locator("#auth-login")).isEnabled();
+		pagina.locator("#auth-email").fill(emailConta);
+		pagina.locator("#auth-password").fill("Uma senha errada longa");
+		pagina.locator("#auth-login").click();
+		assertThat(pagina.locator("#auth-state")).hasText("E-mail ou senha incorretos.");
+		pagina.locator("#auth-password").fill(ContasTeste.SENHA);
+		pagina.locator("#auth-login").click();
+		assertThat(pagina.locator("#workspace")).isVisible();
+		enviarPdf("Documento para testar acesso.");
 		assertThat(pagina.locator("#status")).hasText("Texto extraído de 1 página(s).");
 		assertThat(pagina.locator("#page-text")).containsText("Documento para testar acesso.");
 	}
@@ -196,7 +211,7 @@ class InterfaceNavegadorTest {
 		assertThat(pagina.locator("#comparison-result")).containsText("PENDENTE_REVISAO / v1");
 		// O histórico fica dentro de <details>; o texto está no DOM mesmo recolhido.
 		pagina.locator("#measure-list article").first().getByText("Ver atual / revisar").click();
-		assertThat(pagina.locator("#review-history")).containsText("Pessoa de teste");
+		assertThat(pagina.locator("#review-history")).containsText((String)pagina.evaluate("atlasUsuario.id"));
 		assertThat(pagina.locator("#review-history")).containsText("Falta conferir o contexto.");
 		assertThat(pagina.locator("#review-history")).containsText("160");
 	}

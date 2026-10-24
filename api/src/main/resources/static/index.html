@@ -37,8 +37,19 @@
   <h1>Atlas Científico</h1>
   <p class="muted">Um primeiro fluxo para conferir texto de PDFs e ligar cada medida à sua evidência.</p>
   <p class="muted">O registro da medida é manual nesta versão. O Atlas não interpreta nem valida o resultado científico.</p>
-  <label for="api-key">Chave de acesso (só se a API exigir)</label>
-  <input id="api-key" type="password" autocomplete="off">
+  <section id="auth-panel">
+    <h2>Sua conta</h2>
+    <p id="auth-state" role="status" aria-live="polite">Verificando sessão…</p>
+    <form id="auth-form">
+      <label for="auth-email">E-mail</label><input id="auth-email" type="email" autocomplete="username" maxlength="254" required>
+      <label for="auth-password">Senha (12 a 128 caracteres)</label><input id="auth-password" type="password" autocomplete="current-password" minlength="12" maxlength="128" required>
+      <button id="auth-login" type="submit" disabled>Entrar</button>
+      <button id="auth-register" type="button" disabled>Criar conta</button>
+    </form>
+    <div id="account-tools" hidden><p id="account-email"></p><button id="auth-logout" type="button">Sair</button></div>
+    <p class="muted">Documentos, medidas, coleções e tarefas pertencem à sua conta. Obras do catálogo continuam compartilhadas. Não há compartilhamento do PDF original nesta versão.</p>
+  </section>
+  <div id="workspace" hidden>
   <div id="status" role="status" aria-live="polite"></div>
 
   <section>
@@ -169,7 +180,9 @@
     <p id="operation-status" role="status"></p>
     <div id="operation-failures"></div>
   </section>
+  </div>
 </main>
+<script src="/conta.js"></script>
 <script>
   const statusBox = document.querySelector('#status');
   const uploadForm = document.querySelector('#upload-form');
@@ -185,14 +198,10 @@
     statusBox.className = error ? 'error' : 'success';
   }
 
-  try { document.querySelector('#api-key').value = sessionStorage.getItem('atlas-chave') || ''; } catch { /* ignora */ }
-
   async function request(url, options = {}) {
-    const chave = document.querySelector('#api-key').value.trim();
-    if (chave) {
-      try { sessionStorage.setItem('atlas-chave', chave); } catch { /* sem armazenamento: usa só o campo */ }
-      options = { ...options, headers: { ...(options.headers || {}), 'X-Atlas-Chave': chave } };
-    }
+    if (!['GET','HEAD','OPTIONS'].includes((options.method || 'GET').toUpperCase()))
+      options = { ...options, headers: { ...(options.headers || {}), 'X-Atlas-CSRF': atlasCsrf || '' } };
+    options = { ...options, credentials: 'same-origin' };
     // Sem prazo, um servidor que não responde deixaria a tela travada com os botões desabilitados.
     if (!options.signal && typeof AbortSignal.timeout === 'function') options = { ...options, signal: AbortSignal.timeout(120000) };
     let response;
@@ -202,6 +211,7 @@
         : 'Não foi possível falar com o servidor. Verifique a conexão e tente novamente.');
     }
     if (!response.ok) {
+      if (response.status === 401) { limparSessaoLocal(); location.replace('/?sessao=expirada'); }
       let detail = `A solicitação falhou (${response.status}).`;
       try { detail = (await response.json()).detail || detail; } catch { /* usa a mensagem padrão */ }
       throw new Error(detail);
