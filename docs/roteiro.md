@@ -10,16 +10,16 @@ Objetivo: importar um PDF que a pessoa pode processar, extrair texto por página
 |---|---|---|---|
 | 1 | Esqueleto Spring Boot 4.1.1 / Java 21 com Postgres em Testcontainers | `./mvnw test` passa com Postgres real | testado |
 | 2 | Esquema inicial (migração Flyway): obra, versão do documento, execução, estudo, experimento, medida, evidência | A migração aplica num banco vazio; constraints impedem medida sem evidência e hash duplicado (6 testes; sem o gatilho de evidência o teste correspondente reprova) | testado |
-| 3 | Upload de PDF com consentimento explícito: valida assinatura, tamanho e hash; guarda o original com nome derivado do hash; devolve o registro | Testes de integração: reenvio devolve o mesmo registro, conteúdo inválido e ausência de consentimento são recusados | testado |
-| 4 | Extração de texto por página (Apache PDFBox) | Teste com PDF de várias páginas devolve o texto de cada página; PDF sem texto vira estado `PRECISA_OCR` | planejado |
-| 5 | Execução de processamento com chave de idempotência (hash + versão do processador) | Reprocessar não duplica páginas nem medidas | planejado |
+| 3 | Upload de PDF com consentimento explícito: valida assinatura, tamanho e hash; guarda o original com nome derivado do hash; devolve o registro | Testes de integração: duplicata não cria registro, PDF inválido, excesso de tamanho e ausência de consentimento são recusados | testado |
+| 4 | Extração síncrona de texto por página (Apache PDFBox) | PDF multipágina persiste texto separado por página; PDF sem texto fica em `PRECISA_OCR` | testado |
+| 5 | Execução de processamento com chave de idempotência (hash + versão do processador) | Reprocessar devolve a execução existente e não duplica páginas; medidas serão cobertas quando a etapa 6 for implementada | testado |
 | 6 | Medidas com evidência a partir de extração pré-gravada (sem chamada paga) | Cada medida tem página e trecho; `valor_original` e unidade preservados | planejado |
 | 7 | Endpoint e tela mínima que mostram uma medida e o trecho de origem | Abrir uma medida mostra a página e o trecho exatos | planejado |
 | 8 | CI no GitHub Actions rodando os testes | Workflow verde no repositório | planejado |
 
 Dependências: Docker (presente), JDK 21 (instalado em `~/.local/jdk`, ver `docs/ambiente.md`).
 
-Limitações conhecidas desta entrega: um domínio, poucos campos, sem OCR, sem Kafka (o processamento ainda é síncrono; a decisão de fila entra na entrega 3). O upload só registra e armazena o documento; a extração e a exibição de evidência continuam planejadas.
+Limitações conhecidas desta entrega: um domínio, poucos campos, sem OCR, sem Kafka (o processamento ainda é síncrono; a decisão de fila entra na entrega 3). Medidas, evidências, revisão humana e interface continuam planejadas.
 
 ## Entregas seguintes
 

@@ -2,7 +2,7 @@
 
 Plataforma para explorar literatura científica, comparar estudos e conferir de onde vem cada informação extraída. Projeto pessoal de portfólio, em Java 21 e Spring Boot.
 
-**Estado: primeira fatia em implementação.** A API Spring Boot e a migração inicial estão testadas. O endpoint de upload de PDF valida assinatura e tamanho, exige confirmação de autorização, calcula SHA-256 e evita duplicatas. Extração de texto, processamento e interface de evidências ainda estão planejados.
+**Estado: entrega 1 em andamento.** A API Spring Boot, o upload autorizado e a extração textual por página estão implementados e testados. Cada execução é idempotente por hash do documento e versão do processador; PDFs sem camada de texto ficam com estado `PRECISA_OCR`. OCR, extração de medidas, evidências e interface ainda estão planejados.
 
 ## Ideia
 
@@ -28,6 +28,8 @@ Os testes de integração usam Testcontainers e precisam de Docker.
 `POST /api/documentos` recebe `multipart/form-data` com `arquivo` (PDF) e `autorizacaoConfirmada=true`; `titulo` é opcional e declarado pela pessoa, não inferido pelo sistema. O limite padrão é 20 MiB e pode ser ajustado com `ATLAS_DOCUMENTOS_TAMANHO_MAXIMO`. Os arquivos são armazenados em `data/documentos`, relativo ao diretório em que a API foi iniciada (`ATLAS_DOCUMENTOS_DIR` para mudar o diretório). A resposta indica `duplicado` quando o mesmo conteúdo já foi recebido.
 
 Este endpoint só registra e armazena o PDF. Ainda não extrai texto, não confirma licença e não produz resultados científicos.
+
+`POST /api/documentos/{id}/extracoes` executa a extração síncrona com PDFBox, grava o texto separado por página e retorna o estado e a quantidade de páginas. A mesma combinação de PDF e versão do processador reutiliza a execução já gravada. PDFs sem texto pesquisável ficam com `PRECISA_OCR`; OCR ainda não está implementado.
 
 ## Documentos
 
