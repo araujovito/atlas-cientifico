@@ -79,4 +79,9 @@ O autor delegou a decisão ao revisor. As tomadas e as adiadas estão em [deciso
 
 ### Em aberto
 
-O trecho com quebra de linha foi corrigido em `f537bd6`. Restam as decisões adiadas em [decisoes.md](decisoes.md), a falta de limite de tempo na extração e a ausência de teste de navegador para a tela.
+O trecho com quebra de linha foi corrigido em `f537bd6`. Restam as decisões adiadas em [decisoes.md](decisoes.md) e a falta de limite de tempo na extração.
+
+### Continuação em 2026-10-24
+
+- `d96a061` adiciona um teste ponta a ponta em Chromium para enviar um PDF sintético, registrar uma medida e navegar até o trecho destacado. O teste e a suíte completa passaram localmente (52 testes). O novo passo de instalação do navegador no GitHub Actions ainda aguarda execução remota depois do push; não foi contado como CI verde.
+- Cobertura do navegador permanece limitada a Chromium e ao fluxo com texto pesquisável. Responsividade, outros navegadores e PDFs que exigem OCR não foram testados.

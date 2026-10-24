@@ -14,7 +14,7 @@ Objetivo: importar um PDF que a pessoa pode processar, extrair texto por página
 | 4 | Extração síncrona de texto por página (Apache PDFBox) | PDF multipágina persiste texto separado por página; PDF sem texto fica em `PRECISA_OCR` | testado |
 | 5 | Execução de processamento com chave de idempotência (hash + versão do processador) | Reprocessar devolve a execução existente e não duplica páginas; medidas serão cobertas quando a etapa 6 for implementada | testado |
 | 6 | Registro de medidas candidatas sem chamada paga | Testes de integração confirmam página, tolerância apenas a espaços/quebras de linha, offsets Unicode de início inclusivo/fim exclusivo, preservação de valor/unidade/condições, rejeição de evidência ausente ou ambígua e bloqueio de registros sem texto pesquisável (`PRECISA_OCR`) | testado |
-| 7 | Endpoint e tela mínima que mostram uma medida e o trecho de origem | API lista medida, página, trecho e offsets; tela navega à página e destaca a evidência. Evidências anteriores à V6 mantêm offsets nulos; em `PRECISA_OCR`, informa a limitação e oculta o formulário | implementado |
+| 7 | Endpoint e tela mínima que mostram uma medida e o trecho de origem | API lista medida, página, trecho e offsets; teste em Chromium envia um PDF gerado, registra uma medida e confirma a abertura e o destaque da evidência. Evidências anteriores à V6 mantêm offsets nulos; em `PRECISA_OCR`, informa a limitação e oculta o formulário | testado |
 | 8 | CI no GitHub Actions rodando os testes | Workflow configurado para push e pull request em `main`; execuções verdes no GitHub em `f897ff0`, `95eb6f5` e `d47df5d` | testado |
 
 Dependências: Docker (presente), JDK 21 (instalado em `~/.local/jdk`, ver `docs/ambiente.md`).
@@ -28,5 +28,6 @@ Seguem a seção 9 da especificação: 2 descoberta e catálogo, 3 processamento
 ## Pendências transversais
 
 - Ler [a nota de passagem](handoff-codex.md) antes de continuar: ela lista as regras novas do código e as decisões que ainda são do autor.
+- O teste de navegador cobre o fluxo principal de um PDF com texto; falta validar a experiência em navegadores e tamanhos de tela adicionais.
 - Completar e revisar o conjunto de referência de artigos de baterias antes de avaliar extração automática no passo 6. O candidato inicial e suas limitações estão em `docs/conjunto-referencia.md`.
 - Confirmar limites de requisição e termos do Unpaywall e do Europe PMC antes da entrega 2.

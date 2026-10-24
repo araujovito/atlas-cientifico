@@ -35,6 +35,7 @@ Migrações aplicadas **não se editam** (quebra o checksum do Flyway); crie a p
 - Antes de editar: `git fetch` e `git status`. O push é feito por quem revisa; commite localmente e avise, ou envie se for combinado.
 - Um assunto por commit, com a mensagem dizendo **por que** e o que **não** foi verificado. Sem coautoria nos commits.
 - Rode `./mvnw test` em `api/` (precisa de Docker). Para rodar a API: `docker compose up -d` na raiz e `./mvnw spring-boot:run` em `api/`.
+- A suíte agora inclui `InterfaceNavegadorTest`, com Playwright 1.63.0 e Chromium. Instale o navegador como documentado no README antes do primeiro `./mvnw test`; defina `PLAYWRIGHT_SKIP_BROWSER_GC=1` para preservar outras versões do cache. O CI faz a instalação com dependências do sistema.
 - Cuidados nos testes: o MockMvc não segue para `/error`, então leia a mensagem com `getResolvedException()` (há o helper `motivo` em `ProcessamentoDocumentoTest`). O banco do Testcontainers é compartilhado entre os testes da classe; conte linhas **por execução**, nunca a tabela inteira.
 - O Dependabot abriu PRs para atualizar as actions fixadas por hash. São saltos de versão maior; só aceite depois de ver o CI passar.
 
@@ -45,3 +46,8 @@ O autor delegou ao revisor as decisões de projeto; o que foi decidido e o que f
 ## Honestidade nos textos públicos
 
 O README, o roteiro e qualquer post só podem afirmar o que o código e os testes sustentam. Estados do roteiro: planejado, implementado, testado, medido. Nada neste projeto foi **medido** (desempenho, precisão de extração); estimativas dos revisores estão marcadas como estimativas.
+
+## Continuação em 2026-10-24
+
+- `d96a061` adiciona um teste real de navegador para upload de PDF sintético, registro de medida e abertura/destaque da evidência. Playwright 1.63.0 e Chromium são dependências de teste; o CI os instala antes da suíte. `./mvnw test` passou localmente com 52 testes. A execução do CI GitHub após o push ainda precisa ser conferida pelo revisor.
+- O teste cobre só Chromium e o fluxo principal com PDF pesquisável. Não afirma compatibilidade com outros navegadores, responsividade, nem validação OCR. A limitação de tempo da extração segue aberta.

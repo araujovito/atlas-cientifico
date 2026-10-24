@@ -22,7 +22,14 @@ cd api
 ```
 
 Os testes de integração usam Testcontainers e precisam de Docker.
-O GitHub Actions executa essa mesma suíte em pushes e pull requests para `main`.
+O teste de interface abre Chromium com Playwright. Na primeira execução local, instale o navegador compatível pelo wrapper (o `SKIP_BROWSER_GC` evita remover versões usadas por outros projetos):
+
+```bash
+cd api
+PLAYWRIGHT_SKIP_BROWSER_GC=1 ./mvnw exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install chromium"
+```
+
+No GitHub Actions, o workflow instala Chromium e suas dependências antes de executar a mesma suíte em pushes e pull requests para `main`.
 
 ## Executar a API
 
