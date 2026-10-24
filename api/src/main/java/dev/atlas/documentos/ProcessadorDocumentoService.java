@@ -157,6 +157,7 @@ public class ProcessadorDocumentoService {
 		if (medida == null || vazio(medida.objeto()) || vazio(medida.metrica())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Objeto e métrica são obrigatórios.");
 		}
+		validarTamanhos(medida);
 		if (!List.of("REPORTADO", "INFERIDO", "AUSENTE", "PENDENTE_REVISAO").contains(medida.estado())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Estado da medida inválido.");
 		}
@@ -253,6 +254,26 @@ public class ProcessadorDocumentoService {
 			.query(Boolean.class).single();
 		if (!pertence) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Execução não encontrada para este documento.");
+		}
+	}
+
+	private void validarTamanhos(MedidaCandidata medida) {
+		limitar("objeto", medida.objeto(), 300);
+		limitar("metrica", medida.metrica(), 300);
+		limitar("valorOriginal", medida.valorOriginal(), 100);
+		limitar("unidadeOriginal", medida.unidadeOriginal(), 50);
+		limitar("trecho", medida.trecho(), 5000);
+		if (medida.condicoes() != null && medida.condicoes().size() > 50) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Condições experimentais: no máximo 50 chaves.");
+		}
+		if (serializarCondicoes(medida.condicoes()).length() > 4000) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Condições experimentais: no máximo 4000 caracteres.");
+		}
+	}
+
+	private void limitar(String campo, String valor, int maximo) {
+		if (valor != null && valor.length() > maximo) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O campo " + campo + " excede " + maximo + " caracteres.");
 		}
 	}
 

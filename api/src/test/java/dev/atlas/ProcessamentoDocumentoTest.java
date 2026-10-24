@@ -254,6 +254,26 @@ class ProcessamentoDocumentoTest {
 			.andExpect(status().isOk());
 	}
 
+	@Test
+	void rejeitaCamposAcimaDoLimite() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("Capacidade 125 mAh/g"));
+		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
+		var longa = new dev.atlas.documentos.MedidaCandidata(
+				"x".repeat(301), "capacidade", "125", "mAh/g", "REPORTADO", 1, "Capacidade 125 mAh/g", java.util.Map.of());
+		var muitasCondicoes = new java.util.HashMap<String, Object>();
+		for (int i = 0; i < 51; i++) muitasCondicoes.put("k" + i, i);
+		var condicoes = new dev.atlas.documentos.MedidaCandidata(
+				"LiFePO4", "capacidade", "125", "mAh/g", "REPORTADO", 1, "Capacidade 125 mAh/g", muitasCondicoes);
+
+		for (var candidata : java.util.List.of(longa, condicoes)) {
+			mvc.perform(post("/api/documentos/{documentoId}/extracoes/{execucaoId}/medidas", documento, execucao)
+					.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+					.content(objectMapper.writeValueAsBytes(candidata)))
+				.andExpect(status().isBadRequest());
+		}
+		assertThat(medidasDaExecucao(execucao)).isZero();
+	}
+
 	// O MockMvc não segue para /error, então a mensagem é lida da exceção resolvida.
 	private static String motivo(MvcResult result) {
 		return ((org.springframework.web.server.ResponseStatusException) result.getResolvedException()).getReason();
