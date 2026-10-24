@@ -82,12 +82,15 @@ try {
     }
     if(!traceVerified) throw new Error('Span do trabalhador não chegou ao Jaeger local.');
   }
+  // Memória real dos contêineres com a aplicação em uso (um instante, não um pico): evidência para os limites do compose.
+  const ids_ = spawnSync('docker',['ps','-q','--filter',`label=com.docker.compose.project=${project}`],{encoding:'utf8'}).stdout.trim().split('\n').filter(Boolean);
+  const memoria = ids_.length ? spawnSync('docker',['stats','--no-stream','--format','{{.Name}}: {{.MemUsage}} ({{.MemPerc}})',...ids_],{encoding:'utf8'}).stdout.trim().split('\n') : [];
   const ordered=[...samples].sort((a,b)=>a-b);
   console.log(JSON.stringify({metodo:'smoke sintético, 8 uploads concorrentes do mesmo PDF; não é benchmark científico',
     host:{cpu:cpus()[0]?.model,cpus:cpus().length,memoriaBytes:totalmem(),node:process.version},
     imagem:compose('images','--format','json').trim(),bytes:bytes.length,concorrencia:8,
     uploadMs:{min:ordered[0],mediana:(ordered[3]+ordered[4])/2,max:ordered.at(-1)},
-    retomadaAteConclusaoMs:processingElapsed,documentosUnicos:ids.length,tarefasUnicas:1,execucaoReutilizada:true,traceOtlpVerificado:traceVerified,
+    retomadaAteConclusaoMs:processingElapsed,documentosUnicos:ids.length,tarefasUnicas:1,execucaoReutilizada:true,traceOtlpVerificado:traceVerified,memoriaDosConteineres:memoria,
     operacao:await request('/api/operacao')},null,2));
 } finally {
   // O nome é gerado aqui; somente estes volumes sintéticos são removidos.
