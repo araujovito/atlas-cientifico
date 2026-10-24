@@ -92,3 +92,9 @@ O trecho com quebra de linha foi corrigido em `f537bd6`. Restam as decisões adi
 - `5693848`: consulta OpenAlex somente por DOI. Testes HTTP locais verificam mapeamento, validação, falhas, cooldown e prazo antes/depois dos cabeçalhos. O teste de corpo atrasado falhou com apenas o timeout do `HttpRequest` no Java 21 e passou com o prazo da operação completa e cancelamento.
 - `9ff978b`: interface da busca, com teste de texto HTML não executado e limpeza do resultado após erro.
 - Suíte completa: 86 testes passaram localmente. A API local também fez duas consultas reais com HTTP 200; o contrato e os limites estão em [openalex.md](openalex.md). Isso não substitui revisão independente nem uma nova execução do CI no GitHub.
+
+### Nova implementação — ainda aguardando revisão independente
+
+A implementação avançou até catálogo/coleções, fila e recuperação, parser isolado, revisão append-only, comparação, grafo de citações, operação Docker e telemetria local. O autor autorizou decisões e depois fixou orçamento zero. A sequência de commits, critérios e limites está em `handoff-codex.md` e `roteiro.md`; **esta nota não é uma revisão do Claude**.
+
+Evidência final local: 117 testes passaram em 2026-10-24. Smoke do JAR empacotado confirmou idempotência sob oito uploads concorrentes, tarefa durável com consumidor parado, retomada e recepção de span no Jaeger. Referência científica independente, precisão de IA, carga representativa, contas/S3, AWS/CD e CI remoto permanecem sem comprovação. A extração ainda é manual; o avaliador offline e sua fixture negativa não equivalem a um modelo de extração.

@@ -62,3 +62,29 @@ O autor autorizou tomar decisões visando a qualidade do projeto e pediu para qu
 - `./mvnw test` passou com **86 testes**. Os testes da fonte usam servidor HTTP local e o navegador usa respostas controladas da busca. Verificação manual adicional pela API local contra o OpenAlex real: dois DOIs dos candidatos responderam 200, com IDs `W4220682882` e `W4220906497`. DOI inválido respondeu 400 com `detail`.
 
 O contrato, a configuração, os erros e os limites estão em [openalex.md](openalex.md). Persistência/deduplicação do catálogo, busca por tema/autor e coleções ainda não foram implementadas. Os dois artigos de demonstração tiveram a licença do XML reconferida; não foi validado um conjunto de avaliação nem baixado PDF nesta rodada. A suíte passou localmente; o CI remoto após estes commits ainda precisa ser conferido. Sem post durante o trabalho: o fechamento do dia reúne os fatos para revisão do Vitor.
+
+## Nova rodada: roteiro completo autorizado, orçamento zero
+
+O usuário autorizou tomar decisões e avançar no roteiro inteiro. Isso supera a restrição histórica de não iniciar fila sem alinhamento: o alinhamento ocorreu. Depois esclareceu que não quer gastar nenhum real. Não criar AWS, serviços pagos ou chamadas pagas. Contas/propriedade, armazenamento S3 e exclusão seguem sem implementação. A próxima migração livre é **V15**; não alterar V1–V14.
+
+Commits locais para revisão/push do Claude (não houve push do implementador):
+
+- `f4d7a11`, `a4cd344`, `99c3818`: catálogo persistido, snapshots de fontes, conflitos explícitos, busca por tema/autor/ano, coleções do operador, associação explícita de PDF e interface.
+- `82fd90d`: parser em JVM filha com prazo, heap, concorrência limitada e ambiente sem segredos. Não é sandbox de SO.
+- `d562fde`, `2153db7`, `827c53a`: fila PostgreSQL, eventos transacionais, reservas/token, reentrega idempotente, retentativas/falhas e UI com retomada. Teste de interrupção entre persistir e confirmar não duplica execução. Interrupção do parser vira 503 recuperável, não 422 permanente.
+- `4a6b2e1`, `546413a`: revisões append-only e controle otimista, conversões decimais conservadoras, comparação/abertura da evidência. Identidade do revisor é declarada, não autenticada.
+- `bc4aa02`, `f58da62`: snapshots de citações, grafo limitado, navegação por obra e linha do tempo; não há relações inferidas.
+- `7b255f5`: painel operacional e métricas por processo com cardinalidade limitada.
+- `598277a`: contêineres privados API/worker, non-root/read-only, banco sem porta pública, smoke sintético que remove só o seu próprio projeto temporário. JAR empacotado/filho validado de verdade, não apenas classes de teste.
+- `881211d`: avaliador offline por campo/evidência/experimento e fixture negativa; não representa precisão de IA.
+
+A suíte completa passou com **112 testes** antes da adição do avaliador e OpenTelemetry. Quatro testes do avaliador passaram, CLI negativa confirmou 1/2 campos completos, e teste de envio OTLP local passou. O estado final da suíte e do coletor fica no fechamento abaixo. Não executar dois Maven compilando o mesmo `target/` simultaneamente: uma tentativa assim interferiu no parser de navegador; a repetição isolada passou.
+
+Pendências que não podem ser apresentadas como concluídas: avaliação científica com referência independente; extração automática por IA; OCR; conectores reais Unpaywall/Europe PMC; React/TS; contas individuais; S3; AWS/CD (orçamento zero); carga representativa e revisão/CI remoto dos novos commits. Não publicar uma afirmação de conclusão integral do roteiro. LinkedIn continua em uma publicação consolidada no fim do dia, revisada pelo autor, sem post por commit.
+
+### Fechamento verificado desta rodada
+
+- `7c9be0a`: OpenTelemetry opt-in; exportações externas desligadas por padrão. Receptor HTTP local verificou OTLP; override Jaeger e smoke Docker verificaram span real `atlas.pdf.execucao` do worker. Não há propagação de trace pela fila nem agregação remota de métricas.
+- Última suíte completa, 2026-10-24 às 14:18 BRT: **117 testes, 0 falhas, 0 erros, 0 ignorados**, BUILD SUCCESS. Inclui seis fluxos Chromium, PostgreSQL real, parser em processo e teste OTLP. O Maven ainda avisa sobre metadados de dois repositórios opcionais 401 e escrita nativa no canal Surefire; não impediram o build e não foram suprimidos.
+- Dois smokes com JAR real passaram, um sem e outro com coletor local. Mesmos uploads concorrentes mantiveram um documento/uma tarefa, e retomada do worker concluiu. Apenas os projetos/volumes sintéticos criados pelos smokes foram removidos; instâncias preexistentes não foram alteradas. As imagens de teste ficam no cache Docker.
+- `git fetch origin` não mostrou commits remotos novos a integrar; não houve push, criação de PR, uso AWS, chamada paga ou publicação LinkedIn. Apontamentos atualizados somente no `linkedin.md` ignorado pelo Git.

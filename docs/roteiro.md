@@ -19,29 +19,75 @@ Objetivo: importar um PDF que a pessoa pode processar, extrair texto por página
 
 Dependências: Docker (presente), JDK 21 (instalado em `~/.local/jdk`, ver `docs/ambiente.md`).
 
-Limitações conhecidas desta entrega: um domínio, poucos campos, sem OCR, sem Kafka (o processamento ainda é síncrono; a decisão de fila entra na entrega 3). O registro de medida é manual; extração automática e revisão humana ainda não estão implementadas. A interface existente é um protótipo mínimo, não o frontend React/TS previsto na especificação.
+Limitações: um domínio, poucos campos, sem OCR ou extração automática por IA. O registro é manual. Revisão com histórico foi acrescentada na entrega 4 e fila na entrega 3. A interface é um protótipo HTML/JS, não o frontend React/TS previsto. O conjunto científico ainda depende de revisão independente.
 
 ## Entrega 2 — descoberta e catálogo
 
-Objetivo: localizar obras, preservar identificadores e evitar duplicação ao montar um catálogo. A primeira fatia consulta metadados por DOI; ainda não persiste o resultado.
+Objetivo: localizar obras, preservar identificadores e evitar duplicação ao montar um catálogo.
 
 | # | Passo | Critério de conclusão | Estado |
 |---|---|---|---|
 | 1 | Consulta OpenAlex por DOI normalizado | API retorna título, autores, ano e identificadores; testes HTTP locais cobrem erros, limite de chamadas e prazo do corpo completo. Dois DOIs dos candidatos consultados também pela API local contra a fonte real | testado |
 | 2 | Busca por DOI na tela mínima | Chromium mostra metadados externos como texto e oculta o resultado anterior em caso de falha; fonte e links são visíveis | testado |
-| 3 | Persistir obra e identificadores com deduplicação | Reimportar DOI/OpenAlex ID equivalente não duplica obra; conflito entre fontes não sobrescreve dados silenciosamente | planejado |
-| 4 | Busca por tema/autor e filtros | Resultados limitados e navegáveis, com origem e limites do provedor respeitados | planejado |
-| 5 | Coleções | Obras podem ser agrupadas; desenho de acesso precisa acompanhar a decisão de contas/propriedade | planejado |
+| 3 | Persistir obra e identificadores com deduplicação | DOI/OpenAlex equivalentes não duplicam; conflitos retornam 409; snapshots preservados; associação explícita de PDF | testado — `f4d7a11`, testes catálogo/DB |
+| 4 | Busca por tema/autor/ano e paginação | Resultados limitados; autor selecionado por ID; conteúdo externo não vira HTML | testado — `a4cd344`, `99c3818`, HTTP local e Chromium |
+| 5 | Coleções do operador | Associação idempotente e persistente; sem contas individuais | testado — `f4d7a11`, `99c3818` |
 
-Evidência dos passos 1 e 2: `5693848`, `9ff978b` e [contrato/verificações do OpenAlex](openalex.md). O fechamento do conjunto de referência e a limitação de tempo da extração de PDFs continuam pendentes da entrega 1; a consulta de metadados não depende da extração nem da avaliação automática.
+Evidência dos passos 1 e 2: `5693848`, `9ff978b` e [contrato/verificações do OpenAlex](openalex.md). Deduplicação entre fontes foi testada com fixtures controladas; somente OpenAlex tem conector real. Isso não demonstra uma segunda integração externa.
 
-## Entregas seguintes
+## Entrega 3 — processamento assíncrono robusto
 
-Seguem a seção 9 da especificação: 3 processamento assíncrono robusto, 4 comparação e revisão, 5 rede de citações, 6 operação e AWS, 7 avaliação e medição. Cada uma ganha o seu quadro antes da implementação.
+| Passo | Estado e evidência |
+|---|---|
+| Isolar parser com prazo e heap | testado — `82fd90d`: JVM lenta encerrada de verdade; não é sandbox de SO |
+| Fila transacional + eventos no PostgreSQL | testado — `d562fde`: SKIP LOCKED, reserva, token, backoff e falhas retidas; Kafka dispensado nesta fase |
+| Reentrega idempotente | testado — recuperação após persistir e antes de confirmar, duas reservas concorrentes e rejeição de token antigo |
+| API 202 e acompanhamento/retomada na tela | testado — `2153db7`, Chromium |
+| Interrupção recuperável | testado — `827c53a`, 503 sem execução incompleta |
+| API/worker em contêineres distintos | testado — `598277a`, smoke de execução do JAR e trabalhador parado/reiniciado |
+
+## Entrega 4 — comparação e revisão
+
+| Passo | Estado e evidência |
+|---|---|
+| Normalização decimal preservando originais | testado — `4a6b2e1`, conversões limitadas e explícitas, sem float no JSON |
+| Regras conservadoras de comparabilidade | testado — mesmas condições completas e unidade canônica; sem veredito científico |
+| Revisão append-only com versão otimista | testado — banco recusa UPDATE/DELETE; conflito 409; origem permanece intacta |
+| Matriz e histórico navegáveis | testado — `546413a`, Chromium; revisor é declarado, não autenticado |
+
+## Entrega 5 — rede de citações
+
+| Passo | Estado e evidência |
+|---|---|
+| Snapshots de referências da fonte e expansão limitada | testado — `bc4aa02`, preservação de snapshots e mudanças da fonte |
+| Grafo, navegação e linha do tempo | testado — `f58da62`, Chromium; ano/título desconhecidos ficam ausentes |
+| Relações inferidas | não implementadas; todas as ligações atuais são identificadas como recebidas do OpenAlex |
+
+## Entrega 6 — operação e implantação
+
+| Passo | Estado e evidência |
+|---|---|
+| Painel da fila, eventos e reativação | testado — `7b255f5`, API/DB e Chromium |
+| Métricas de tentativas com rótulos limitados | testado — `7b255f5`; contadores do processo, não agregação distribuída |
+| OpenTelemetry opt-in e coletor local | testado — receptor OTLP em teste e span real do trabalhador recebido pelo Jaeger no smoke Docker; `operacao.md` |
+| Empacotamento e Docker Compose privado | testado — `598277a`, API/worker separados, sem root e raiz somente leitura |
+| CI | testes existentes; workflow novo após push depende de revisão do Claude |
+| AWS e CD remoto | adiados pelo autor: orçamento zero; nenhum recurso criado |
+
+## Entrega 7 — avaliação e medição
+
+| Passo | Estado e evidência |
+|---|---|
+| Avaliador offline de campos e evidência | testado — `881211d`, quatro testes e CLI com fixture sintética negativa |
+| Método para referência independente | documentado em `avaliacao.md`; conjunto real ainda pendente |
+| Concorrência e tempos operacionais sintéticos | medido em uma execução de smoke — `operacao.md`, oito uploads, método/hardware/limites registrados |
+| Carga representativa e precisão científica | pendentes; não extrapolar a amostra sintética, não publicar nota de IA como validação |
 
 ## Pendências transversais
 
+Última verificação local: 117 testes passaram sem falhas/erros/ignorados em 2026-10-24; smoke Docker com Jaeger também passou. Isso não conclui as pendências científicas, de produto e de implantação abaixo.
+
 - Ler [a nota de passagem](handoff-codex.md) antes de continuar: ela lista as regras novas do código e as decisões que ainda são do autor.
-- Chromium cobre upload/evidência, página sem texto, erro de chave, troca de documento e busca por DOI. Outros navegadores e tamanhos de tela continuam sem validação.
+- Chromium cobre upload/evidência/retomada, página sem texto, erro de chave, troca de documento, catálogo/coleções/citações, revisão/comparação e painel. Outros navegadores e tamanhos de tela continuam sem validação.
 - Completar e revisar o conjunto de referência de artigos de baterias antes de avaliar extração automática no passo 6. O candidato inicial e suas limitações estão em `docs/conjunto-referencia.md`.
-- Confirmar limites de requisição e termos do Unpaywall e do Europe PMC antes de implementar seus conectores; o início da entrega 2 usa apenas OpenAlex.
+- Unpaywall: contrato e teto diário lidos; Europe PMC: limite por IP esclarecido, teto numérico ainda não confirmado explicitamente. Ver fontes em `openalex.md` antes de implementar os conectores. Somente OpenAlex está integrado.

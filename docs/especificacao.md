@@ -49,6 +49,8 @@ PDFs enviados pelo usuário entram com uma declaração explícita de que ele te
 
 ## 4. Arquitetura
 
+Nota de implementação em 2026-10-24: o diagrama abaixo continua sendo o desenho-alvo inicial. A decisão atual usa fila transacional no PostgreSQL em vez de Kafka, API e worker com o mesmo JAR em processos separados, volume local e interface HTML/JS. React, S3 e contas individuais não estão implementados. AWS não será criada enquanto valer a decisão do autor de orçamento zero. Estado e provas estão no roteiro, não inferir implementação a partir do diagrama.
+
 Princípio: **monólito modular em Java com um trabalhador de extração separado**, não microsserviços. Dois artefatos implantáveis na primeira versão.
 
 ```mermaid

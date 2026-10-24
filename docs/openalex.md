@@ -56,4 +56,21 @@ A fonte identifica seus metadados como CC0. Isso não transfere a licença para 
 - Suíte completa local em 2026-10-24: 86 testes, sem falhas. CI remoto desta mudança ainda depende do push/revisão.
 - Verificação manual adicional: API local consultou o OpenAlex real para `10.1038/s41467-022-28959-5` e `10.1038/s41597-022-01217-5`, ambos com HTTP 200 e IDs `W4220682882`/`W4220906497`. DOI inválido respondeu 400 com `detail`. As chamadas reais não fazem parte do CI e não constituem medição de qualidade ou disponibilidade do provedor.
 
-Persistência, deduplicação entre fontes, busca por tema/autor e coleções continuam planejadas. A precisão dos metadados não foi avaliada.
+O número de 86 testes acima é histórico da primeira fatia. Persistência, busca e coleções foram acrescentadas na continuação abaixo. A precisão dos metadados não foi avaliada.
+
+## Continuação do catálogo, descoberta e citações
+
+- `POST /api/catalogo/obras` recebe `{ "doi": "..." }`, consulta a fonte e persiste obra/identificadores/snapshot; `GET /api/catalogo/obras` e `/{id}` consultam o catálogo local. Mesmo DOI não chama novamente a fonte se já existe; conflitos de identificadores retornam 409, sem fusão automática.
+- `GET /api/catalogo/obras/busca?tema=...&autor=...&ano=...&pagina=1&tamanho=10` usa filtros documentados do provedor; pelo menos um filtro é exigido. Tamanho até 20, janela de até dez mil resultados, somente obras com DOI. Sem varredura por cursor.
+- `GET /api/catalogo/obras/autores?nome=...` oferece candidatos por ID; a tela não escolhe silenciosamente entre homônimos.
+- `POST /api/catalogo/obras/{id}/citacoes` consulta `referenced_works`, armazena snapshot e conferência; `GET` no mesmo caminho retorna a página local com `limite` e `deslocamento`. Somente IDs válidos da fonte são aceitos. Novos snapshots não apagam os anteriores; nós ainda fora do catálogo podem não ter título/ano.
+- `PUT /api/catalogo/obras/{id}/documentos/{documento}` associa explicitamente upload e obra. Não se infere identidade de um PDF por título.
+- `/api/colecoes`: coleções do operador; não representam usuários ou equipes isoladas.
+
+As consultas usam o mesmo orçamento local de chamadas e prazo completo. Fontes: [busca](https://help.openalex.org/api/searching/), [filtros](https://help.openalex.org/api/filtering/) e [paginação](https://help.openalex.org/api/paging/). Testes da busca/citações usam HTTP local e fixtures; a demonstração não fez uma coleta real de grafo científico.
+
+## Fontes secundárias: situação da pesquisa
+
+Em 2026-10-24 foi possível ler a [documentação oficial do Unpaywall](https://data.unpaywall.org/products/api): exige e-mail e pede no máximo 100.000 chamadas/dia; busca textual foi retirada em 2026-09-18, com indicação de usar OpenAlex. Isso não representa um conector implementado nem autoriza assumir licença de PDF.
+
+O [fórum oficial Europe PMC](https://groups.google.com/a/ebi.ac.uk/g/epmc-webservices/c/cZLnV1JhCj8) esclarece gratuidade, direitos dos respectivos autores/editoras e aplicação de limite por IP. O valor numérico citado na pergunta não foi confirmado explicitamente na resposta da equipe; não tratá-lo como contrato verificado. Implementação deste conector permanece pendente; não é necessário para os testes locais nem para completar a busca atual do OpenAlex.

@@ -41,3 +41,23 @@ Desempenho, uso de memória e precisão de extração **não foram medidos**. Os
 | Limpar o contexto anterior ao trocar PDF e bloquear troca durante gravação | O formulário e o texto antigos podiam continuar visíveis após falha no segundo envio. Isso dificultava conferir qual documento estava ativo. | Coberto em Chromium; outros navegadores não foram verificados. | `5fe2575` |
 
 Fontes oficiais e evidências das chamadas reais estão em [openalex.md](openalex.md). Esses testes não medem precisão dos metadados nem desempenho.
+
+## Continuação autorizada pelo autor — 2026-10-24
+
+O autor autorizou executar o roteiro e tomar decisões com boas práticas, bom senso e questionamento das hipóteses. Isso libera a entrega 3 antes adiada. Posteriormente definiu **nenhum gasto**: AWS, serviços pagos e chamadas pagas de modelos não serão utilizados. As decisões históricas acima ficam registradas; os estados atuais são os seguintes.
+
+| Decisão | Por quê | Hipótese questionada e limite |
+|---|---|---|
+| Fila no PostgreSQL, sem Kafka | Inserir comando e evento na mesma transação elimina a janela de gravação/publicação; SKIP LOCKED permite consumidores concorrentes sem outro serviço | Não há necessidade demonstrada de Kafka. Reserva com prazo e token evita confirmação antiga; o teste interrompe após persistência e comprova reaproveitamento. Não promete exatamente uma vez nem substitui medição de escala |
+| API e worker usam o mesmo JAR em processos distintos | Evita duplicar aplicação e dependências sem perder separação operacional | O smoke executou o JAR real com parser em outra JVM. Um host/volume compartilhado ainda é requisito; não é arquitetura multi-host |
+| Parser em JVM filha com prazo/heap | O limite de páginas não controla PDF lento ou explosão de memória dentro da API | Teste usa processo deliberadamente lento e verifica morte do PID. Ambiente filho não herda segredos. Ainda lê o volume permitido e não é sandbox de SO; PDFs hostis exigem defesa adicional |
+| Catálogo preserva snapshots e não faz fusão silenciosa | DOI e OpenAlex ID podem discordar; título de fonte não é identidade suficiente | Locks ordenados e constraints protegem concorrência. Conflito explícito 409. Segunda fonte foi simulada no teste, não integrada |
+| Coleções compartilhadas por operador | Mantém o modelo atual de chave compartilhada, sem fingir contas individuais | Antes de acesso público/múltiplos usuários, implementar propriedade/autorização por recurso; não hospedar assim na internet |
+| Revisões append-only, com versão otimista | Corrigir uma leitura não pode apagar a evidência anterior; dois revisores não devem sobrescrever um ao outro | Banco impede UPDATE/DELETE; autor é declarado. Não equivale a assinatura ou revisão científica independente |
+| Conversões limitadas e BigDecimal | Cobrir poucas unidades conhecidas com testes é verificável; originais nunca mudam | Mesmas condições declaradas permitem alinhamento técnico, não prova de comparabilidade científica. Condições ausentes bloqueiam alinhamento; nenhum ranking é produzido |
+| Grafo com expansão solicitada e páginas pequenas | Evita fanout automático contra provedor e registros inferidos sem base | Cada ligação vem de snapshot OpenAlex. Título/ano desconhecidos continuam nulos. Fonte bibliométrica não comprova qualidade |
+| Manter protótipo HTML/JS nesta rodada | Os fluxos solicitados foram demonstrados sem introduzir build/frontend novo | React/TS continua pendente. Não chamar o protótipo de frontend final; revisar a decisão se estado/complexidade exigir |
+| Telemetria local opt-in | Atender observabilidade sem enviar dados para fornecedor nem depender de orçamento | Métricas são por processo; tracing não transporta automaticamente contexto pela fila durável. Logs/métricas/traços externos desligados por padrão |
+| Avaliação offline antes de modelo pago | É necessário saber detectar erro de associação/evidência antes de otimizar prompt | Fixture negativa testa o avaliador, não a precisão de um extrator. Conjunto científico precisa de revisão humana independente; sem números inventados |
+
+Os tempos operacionais agora têm uma amostra sintética, explicitamente limitada, em `operacao.md`. Isso não altera a ausência de medição de precisão científica e carga representativa. O revisor Claude ainda não revisou estes novos commits nem fez seu push.

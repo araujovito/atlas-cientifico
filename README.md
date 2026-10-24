@@ -2,9 +2,11 @@
 
 Plataforma para explorar literatura científica, comparar estudos e conferir de onde vem cada informação extraída. Projeto pessoal de portfólio, em Java 21 e Spring Boot.
 
-**Estado: entrega 1 em andamento.** A API Spring Boot, o upload autorizado, a extração textual por página, o registro manual de medidas com evidência literal e uma tela mínima estão implementados e testados. Cada execução é idempotente por hash do documento e versão do processador; PDFs sem camada de texto ficam com estado `PRECISA_OCR`. Extração automática, OCR e interface completa continuam planejados.
+**Estado: fluxo local de catálogo, processamento, revisão, comparação e citações implementado e testado.** Upload autorizado, texto por página, registro manual com evidência e histórico imutável. Fila durável no PostgreSQL, trabalhador separado e parser em JVM limitada; PDFs sem texto ficam em `PRECISA_OCR`. A interface é um protótipo HTML/JS, não o frontend React/TS previsto. Extração automática por IA e OCR não estão implementados.
 
-**Início da entrega 2:** consulta por DOI no OpenAlex pela API e pela tela, com título, autores, ano e identificadores. A busca ainda não salva obras no catálogo. O roteiro distingue essa consulta das etapas futuras de persistência, deduplicação e coleções.
+O catálogo persiste identificadores e snapshots de metadados sem sobrescrita silenciosa, oferece descoberta por tema/autor/ano e coleções compartilhadas do operador. Referências do OpenAlex alimentam grafo paginado e linha do tempo; dados ausentes não são inventados. A comparação preserva originais e só alinha numericamente quando unidades e condições declaradas satisfazem regras explícitas. Isso não prova equivalência científica.
+
+**Orçamento definido pelo autor: R$ 0.** Nenhum recurso AWS foi criado. Operação local em Docker e avaliação offline não usam chamadas pagas. Estado detalhado, evidências e pendências: [roteiro](docs/roteiro.md), [operação](docs/operacao.md), [avaliação](docs/avaliacao.md).
 
 ## Ideia
 
@@ -12,7 +14,7 @@ Ligar *artigo → experimento → resultado → trecho de evidência*. Cada valo
 
 ## Limites
 
-- Usa apenas fontes abertas e documentos que a pessoa tem autorização para processar (OpenAlex, Unpaywall, Europe PMC, PDFs enviados).
+- Usa metadados do OpenAlex e PDFs que a pessoa declara poder processar. Unpaywall e Europe PMC seguem como conectores futuros; não há download automático de PDFs.
 - Não integra o Sci-Hub nem contorna controle de acesso. O motivo está na seção 3 da especificação.
 - Não afirma verdade científica nem contradição entre estudos só porque os números diferem.
 
@@ -34,6 +36,8 @@ PLAYWRIGHT_SKIP_BROWSER_GC=1 ./mvnw exec:java -Dexec.mainClass=com.microsoft.pla
 No GitHub Actions, o workflow instala Chromium e suas dependências antes de executar a mesma suíte em pushes e pull requests para `main`.
 Os testes do conector usam uma fonte HTTP local; os testes da busca no navegador usam respostas controladas da API. A suíte não depende da disponibilidade do OpenAlex público.
 
+Última execução local em 2026-10-24: **117 testes, sem falhas, erros ou testes ignorados**. Smoke Docker separado também passou, incluindo span real recebido no Jaeger. CI remoto destes commits ainda aguarda revisão/push.
+
 ## Executar a API
 
 ```bash
@@ -51,7 +55,8 @@ Este é um projeto de portfólio em desenvolvimento, e os pontos abaixo não est
 - **Não há contas de usuário nem dono por documento.** Existe uma chave compartilhada: com `ATLAS_CHAVE_API` definida, `/api/**` exige o cabeçalho `X-Atlas-Chave` (a tela tem um campo para ela). Quem tem a chave vê todos os documentos, e enviar um PDF já existente devolve o registro do envio anterior. Sem a variável a API fica aberta, o que serve só para a máquina local.
 - **A autorização para processar é uma declaração**, uma caixa marcada, sem identidade de quem declarou. Registra a afirmação, não a comprova.
 - **Os PDFs e o texto extraído ficam sem criptografia**, em disco e no banco, e não há endpoint de exclusão nem política de retenção.
-- **A extração é síncrona**, dentro da requisição, com limite de páginas mas sem limite de tempo; o armazenamento é o disco local de uma instância. A lista de medidas é paginada (`limite`, `deslocamento`).
+- **O processamento da tela é assíncrono**, com fila durável e recuperação por reserva expirada. O endpoint síncrono antigo continua por compatibilidade. O parser tem prazo padrão de 20 s, heap de 256 MiB e limite de páginas; não é uma sandbox de segurança de sistema operacional. O armazenamento continua em volume local; não há S3 nem suporte a volumes independentes em múltiplos hosts.
+- **A revisão identifica autor declarado**, não identidade autenticada. Histórico é append-only, mas não substitui validação científica independente.
 
 A revisão que originou esta lista está em [docs/revisao-cruzada.md](docs/revisao-cruzada.md), e as decisões tomadas e adiadas, com o motivo, em [docs/decisoes.md](docs/decisoes.md).
 
@@ -75,6 +80,8 @@ Com a API em execução, abra `http://localhost:8080/` para usar a tela mínima:
 Este endpoint só registra e armazena o PDF. Ainda não extrai texto, não confirma licença e não produz resultados científicos.
 
 `POST /api/documentos/{id}/extracoes` executa a extração síncrona com PDFBox, grava o texto separado por página e retorna o estado e a quantidade de páginas. A mesma combinação de PDF e versão do processador reutiliza a execução já gravada. PDFs sem texto pesquisável ficam com `PRECISA_OCR`; OCR ainda não está implementado.
+
+O fluxo preferido é `POST /api/documentos/{id}/processamentos` (202 e Location), seguido de `GET /api/processamentos/{tarefa}`. A tela acompanha a tarefa e permite retomá-la após recarregar. Retentativas limitadas, eventos, reativação explícita e instruções dos contêineres separados estão em [operação](docs/operacao.md).
 
 `GET /api/documentos/{documentoId}/extracoes/{execucaoId}/paginas` permite conferir o texto extraído, com o número de cada página. A execução precisa pertencer ao documento informado; caso contrário, a API retorna `404`.
 
