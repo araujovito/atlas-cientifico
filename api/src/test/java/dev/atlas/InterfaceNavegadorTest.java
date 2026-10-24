@@ -198,6 +198,7 @@ class InterfaceNavegadorTest {
 	void buscaDoiMostraTextoExternoSemHtmlELimpaResultadoAoFalhar() {
 		org.mockito.Mockito.when(fonte.buscarPorDoi("10.1234/artigo")).thenReturn(new ObraEncontrada(
 				"OPENALEX","https://openalex.org/W123","10.1234/artigo","Título conferido no servidor",2022,java.util.List.of("Uma autora")));
+		org.mockito.Mockito.when(fonte.referencias("https://openalex.org/W123")).thenReturn(java.util.List.of("https://openalex.org/W456"));
 		String consulta = "**/api/catalogo/obras/por-doi?**";
 		pagina.route(consulta, route -> route.fulfill(new Route.FulfillOptions()
 				.setContentType("application/json").setBody("""
@@ -215,6 +216,10 @@ class InterfaceNavegadorTest {
 		assertThat(pagina.locator("#work-doi")).hasAttribute("href", "https://doi.org/10.1234%2Fartigo");
 		pagina.locator("#save-work").click();
 		assertThat(pagina.locator("#library-list h3")).hasText("Título conferido no servidor");
+		pagina.locator("#library-list").getByText("Consultar referências").click();
+		assertThat(pagina.locator("#citation-graph svg")).isVisible();
+		assertThat(pagina.locator("#citation-graph line")).hasCount(1);
+		assertThat(pagina.locator("#citation-timeline")).containsText("Ano desconhecido");
 		pagina.locator("#collection-name").fill("Minha coleção de teste");
 		pagina.locator("#collection-form button").click();
 		assertThat(pagina.locator("#library-status")).hasText("Coleção criada.");

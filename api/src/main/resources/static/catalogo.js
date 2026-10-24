@@ -67,7 +67,12 @@ function renderLibrary(works) {
       try { await request(`/api/colecoes/${collection}/obras/${work.id}`, { method: 'PUT' }); libraryMessage('Obra adicionada à coleção.'); }
       catch (error) { libraryMessage(error.message,true); } finally { add.disabled = false; }
     };
-    article.append(choose, add); output.append(article);
+    const citations = document.createElement('button'); citations.textContent = 'Consultar referências';
+    citations.onclick = async () => {
+      citations.disabled = true;
+      try { await abrirCitacoes(work.id, true); } catch (error) { libraryMessage(error.message,true); } finally { citations.disabled = false; }
+    };
+    article.append(choose, add, citations); output.append(article);
   });
 }
 

@@ -157,6 +157,12 @@
     <p class="muted">O alinhamento verifica campos declarados. Não confirma equivalência científica, qualidade do estudo nem contradição entre resultados.</p>
     <details><summary>Histórico da medida em revisão</summary><pre id="review-history"></pre></details>
   </section>
+  <section>
+    <h2>Rede de citações</h2>
+    <p>Use Consultar referências numa obra do catálogo. Cada seta abaixo significa que o OpenAlex registrou essa referência; não é uma avaliação de qualidade.</p>
+    <p id="citation-status" role="status" aria-live="polite"></p><div id="citation-graph"></div><div id="citation-timeline"></div>
+    <button id="citation-previous" type="button" disabled>Referências anteriores</button><button id="citation-next" type="button" disabled>Mais referências</button>
+  </section>
 </main>
 <script>
   const statusBox = document.querySelector('#status');
@@ -439,5 +445,6 @@
 </script>
 <script src="/catalogo.js"></script>
 <script src="/revisao.js"></script>
+<script src="/citacoes.js"></script>
 </body>
 </html>
