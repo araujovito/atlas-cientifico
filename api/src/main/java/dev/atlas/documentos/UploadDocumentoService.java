@@ -10,7 +10,6 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.UUID;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -46,11 +45,7 @@ public class UploadDocumentoService {
 
 		String tituloSeguro = titulo == null || titulo.isBlank() ? null : titulo.trim();
 		String hash = sha256(arquivo);
-		var existente = jdbc.sql("SELECT id, tamanho_bytes, coletado_em FROM versao_documento WHERE sha256 = :hash")
-				.param("hash", hash)
-				.query((rs, row) -> new DocumentoUpload(rs.getObject("id", UUID.class), hash,
-						rs.getLong("tamanho_bytes"), true, rs.getTimestamp("coletado_em").toInstant()))
-				.optional();
+		var existente = buscarPorHash(hash);
 		if (existente.isPresent()) {
 			return existente.get();
 		}
@@ -76,22 +71,31 @@ public class UploadDocumentoService {
 			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Não foi possível armazenar o PDF.", e);
 		}
 
-		try {
-			UUID id = jdbc.sql("""
-					INSERT INTO versao_documento (origem, sha256, tamanho_bytes, chave_armazenamento,
-					                             autorizacao_declarada, autorizacao_confirmada_em, titulo_declarado)
-					VALUES ('UPLOAD', :hash, :tamanho, :chave, true, :confirmado, :titulo)
-					RETURNING id
-					""").param("hash", hash).param("tamanho", arquivo.getSize()).param("chave", destino.toString())
-					.param("confirmado", java.sql.Timestamp.from(Instant.now())).param("titulo", tituloSeguro)
-					.query(UUID.class).single();
-			return new DocumentoUpload(id, hash, arquivo.getSize(), false, Instant.now());
-		} catch (DuplicateKeyException e) {
-			return jdbc.sql("SELECT id, tamanho_bytes, coletado_em FROM versao_documento WHERE sha256 = :hash")
-					.param("hash", hash)
-					.query((rs, row) -> new DocumentoUpload(rs.getObject("id", UUID.class), hash,
-							rs.getLong("tamanho_bytes"), true, rs.getTimestamp("coletado_em").toInstant())).single();
+		// ON CONFLICT em vez de capturar DuplicateKeyException: no Postgres uma violação
+		// de unicidade aborta a transação, e a consulta seguinte falharia (25P02)
+		// quando dois envios do mesmo PDF chegassem ao mesmo tempo.
+		Instant agora = Instant.now();
+		var inserido = jdbc.sql("""
+				INSERT INTO versao_documento (origem, sha256, tamanho_bytes, chave_armazenamento,
+				                             autorizacao_declarada, autorizacao_confirmada_em, titulo_declarado)
+				VALUES ('UPLOAD', :hash, :tamanho, :chave, true, :confirmado, :titulo)
+				ON CONFLICT (sha256) DO NOTHING
+				RETURNING id
+				""").param("hash", hash).param("tamanho", arquivo.getSize()).param("chave", destino.toString())
+				.param("confirmado", java.sql.Timestamp.from(agora)).param("titulo", tituloSeguro)
+				.query(UUID.class).optional();
+		if (inserido.isPresent()) {
+			return new DocumentoUpload(inserido.get(), hash, arquivo.getSize(), false, agora);
 		}
+		return buscarPorHash(hash).orElseThrow();
+	}
+
+	private java.util.Optional<DocumentoUpload> buscarPorHash(String hash) {
+		return jdbc.sql("SELECT id, tamanho_bytes, coletado_em FROM versao_documento WHERE sha256 = :hash")
+				.param("hash", hash)
+				.query((rs, row) -> new DocumentoUpload(rs.getObject("id", UUID.class), hash,
+						rs.getLong("tamanho_bytes"), true, rs.getTimestamp("coletado_em").toInstant()))
+				.optional();
 	}
 
 	private void validarPdf(MultipartFile arquivo) {
