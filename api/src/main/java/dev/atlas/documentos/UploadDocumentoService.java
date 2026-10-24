@@ -81,7 +81,7 @@ public class UploadDocumentoService {
 				VALUES ('UPLOAD', :hash, :tamanho, :chave, true, :confirmado, :titulo)
 				ON CONFLICT (sha256) DO NOTHING
 				RETURNING id
-				""").param("hash", hash).param("tamanho", arquivo.getSize()).param("chave", destino.toString())
+				""").param("hash", hash).param("tamanho", arquivo.getSize()).param("chave", destino.getFileName().toString())
 				.param("confirmado", java.sql.Timestamp.from(agora)).param("titulo", tituloSeguro)
 				.query(UUID.class).optional();
 		if (inserido.isPresent()) {

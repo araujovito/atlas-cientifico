@@ -274,11 +274,15 @@ public class ProcessadorDocumentoService {
 			.optional();
 	}
 
+	/**
+	 * A chave nova é só o nome do arquivo, relativo ao diretório configurado. Chaves antigas guardam
+	 * o caminho absoluto; resolve() devolve um caminho absoluto sem alterá-lo, então elas seguem valendo.
+	 */
 	private Path caminhoSeguro(String chaveArmazenamento) {
 		Path diretorio = properties.diretorio().toAbsolutePath().normalize();
 		Path caminho;
 		try {
-			caminho = Path.of(chaveArmazenamento).toAbsolutePath().normalize();
+			caminho = diretorio.resolve(chaveArmazenamento).normalize();
 		} catch (RuntimeException e) {
 			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Caminho do documento inválido.", e);
 		}

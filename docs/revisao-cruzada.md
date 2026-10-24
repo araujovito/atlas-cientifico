@@ -31,9 +31,14 @@ Sem defeito bloqueante. Pontos a conhecer:
 - Os offsets contam pontos de código Unicode e a tela usa `Array.from`, que também conta assim. As duas pontas combinam; vale manter um teste com emoji ou caractere fora do plano básico.
 - Evidências anteriores à V6 ficam com offsets nulos, o que está documentado.
 
+## 2026-10-24 (continuação)
+
+- `2ce9b38` (bloqueio de medidas quando a extração precisa de OCR): conferido. Fecha um furo real, porque marcar uma medida como `AUSENTE` num PDF sem texto afirmaria uma ausência que ninguém verificou. Tem teste.
+- Chave de armazenamento relativa: novos uploads guardam só `<sha256>.pdf`, resolvido contra `ATLAS_DOCUMENTOS_DIR`. Linhas antigas com caminho absoluto continuam funcionando (`Path.resolve` mantém caminho absoluto), então não houve migração. Essas linhas antigas ainda quebram se o diretório mudar; só as novas ficam protegidas.
+- Observação na tela: o `change` do seletor de página ganha um listener novo a cada envio de PDF, sem remover o anterior. É inofensivo, mas acumula.
+
 ### Em aberto
 
-1. `chave_armazenamento` guarda caminho absoluto; mudar `ATLAS_DOCUMENTOS_DIR` quebra o processamento de documentos já enviados (erro 500).
-2. O `CHECK upload_com_autorizacao_confirmada` do V2 aceita `obra_id IS NOT NULL` no lugar da confirmação, então protege menos do que o comentário diz.
-3. Trecho literal com quebra de linha (ver acima).
-4. Offsets de trechos repetidos na página (ver acima).
+1. O `CHECK upload_com_autorizacao_confirmada` do V2 aceita `obra_id IS NOT NULL` no lugar da confirmação, então protege menos do que o comentário diz.
+2. Trecho literal com quebra de linha (ver acima).
+3. Offsets de trechos repetidos na página (ver acima).

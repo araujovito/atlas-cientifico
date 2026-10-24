@@ -34,6 +34,8 @@ import org.springframework.test.web.servlet.MvcResult;
 @AutoConfigureMockMvc
 class ProcessamentoDocumentoTest {
 
+	private static final Path DIRETORIO = Path.of(System.getProperty("java.io.tmpdir"), "atlas-processamento-test");
+
 	@Autowired MockMvc mvc;
 	@Autowired JdbcClient jdbc;
 	@Autowired ObjectMapper objectMapper;
@@ -84,10 +86,25 @@ class ProcessamentoDocumentoTest {
 	}
 
 	@Test
+	void guardaApenasONomeDoArquivoEAindaProcessaChaveAbsolutaAntiga() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("Documento com chave relativa"));
+		String chave = jdbc.sql("SELECT chave_armazenamento FROM versao_documento WHERE id=:id")
+				.param("id", documento).query(String.class).single();
+		String hash = jdbc.sql("SELECT sha256 FROM versao_documento WHERE id=:id")
+				.param("id", documento).query(String.class).single();
+		assertThat(chave).isEqualTo(hash + ".pdf");
+
+		// Linhas gravadas antes da mudança têm o caminho absoluto.
+		jdbc.sql("UPDATE versao_documento SET chave_armazenamento=:c WHERE id=:id")
+				.param("c", DIRETORIO.toAbsolutePath().resolve(chave).toString()).param("id", documento).update();
+		assertThat(processar(documento).get("estado").asText()).isEqualTo("CONCLUIDO");
+	}
+
+	@Test
 	void reprocessarMesmoPdfNaoCriaOutraExecucaoNemDuplicaPaginas() throws Exception {
 		UUID documento = enviarPdf(pdfComPaginas("Resultado idempotente"));
 		JsonNode primeira = processar(documento);
-		Path arquivo = Path.of(jdbc.sql("SELECT chave_armazenamento FROM versao_documento WHERE id=:id")
+		Path arquivo = DIRETORIO.resolve(jdbc.sql("SELECT chave_armazenamento FROM versao_documento WHERE id=:id")
 				.param("id", documento).query(String.class).single());
 		Files.delete(arquivo);
 		JsonNode segunda = processar(documento);
