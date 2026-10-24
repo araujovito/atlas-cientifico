@@ -1,0 +1,17 @@
+# Banco para rodar a API em desenvolvimento. Os testes não usam este arquivo:
+# eles sobem o próprio PostgreSQL com Testcontainers.
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: atlas
+      POSTGRES_USER: atlas
+      POSTGRES_PASSWORD: ${ATLAS_DB_PASSWORD:-atlas-dev}
+    ports:
+      # Só na máquina local, e na 5433 para não colidir com um PostgreSQL já instalado.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - atlas-pgdata:/var/lib/postgresql
+
+volumes:
+  atlas-pgdata:
