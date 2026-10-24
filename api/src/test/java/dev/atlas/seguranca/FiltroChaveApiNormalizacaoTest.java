@@ -12,6 +12,8 @@ class FiltroChaveApiNormalizacaoTest {
 		assertEquals("/api/x", FiltroChaveApi.normalizar("/%61pi/x"));
 		assertEquals("/api/x", FiltroChaveApi.normalizar("//api//x"));
 		assertEquals("/api/a+b", FiltroChaveApi.normalizar("/api/a+b"));
+		assertEquals("/api/x", FiltroChaveApi.normalizar("/y/../api/x"));
+		assertEquals("/api/x", FiltroChaveApi.normalizar("/api/./x"));
 		assertEquals("/index.html", FiltroChaveApi.normalizar("/index.html"));
 	}
 }

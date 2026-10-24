@@ -40,7 +40,13 @@ public class FiltroChaveApi extends OncePerRequestFilter {
 		} catch (IllegalArgumentException e) {
 			// Escape inválido: o Tomcat já recusa; mantém o texto bruto, que continua sujeito ao filtro.
 		}
-		return caminho.replaceAll("/{2,}", "/");
+		caminho = caminho.replaceAll("/{2,}", "/");
+		try {
+			// "/x/../api/..." tem de ser visto como "/api/...", como qualquer mapeamento por caminho normalizado o veria.
+			return new java.net.URI(null, null, caminho, null).normalize().getPath();
+		} catch (java.net.URISyntaxException e) {
+			return caminho;
+		}
 	}
 
 	@Override
