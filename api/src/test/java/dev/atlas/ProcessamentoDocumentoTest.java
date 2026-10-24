@@ -308,6 +308,25 @@ class ProcessamentoDocumentoTest {
 	}
 
 	@Test
+	void offsetsContamPontosDeCodigoMesmoComCaractereForaDoPlanoBasico() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("Capacidade 125 mAh/g"));
+		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
+		// A fonte padrão do PDFBox não desenha emoji, então o texto da página é trocado direto no banco.
+		jdbc.sql("UPDATE pagina_texto SET texto = :t WHERE execucao_id = :e AND numero = 1")
+				.param("t", "\uD83D\uDE00 Capacidade 125 mAh/g").param("e", execucao).update();
+
+		registrar(documento, execucao, "LiFePO4", "capacidade", "125", "mAh/g", "Capacidade 125 mAh/g");
+
+		// O emoji ocupa 2 unidades UTF-16 e 1 ponto de código: indexOf daria 3, o esperado é 2.
+		assertThat(jdbc.sql("""
+				SELECT inicio_caractere || ':' || fim_caractere FROM evidencia e
+				JOIN medida m ON m.id = e.medida_id
+				JOIN experimento x ON x.id = m.experimento_id
+				JOIN estudo s ON s.id = x.estudo_id WHERE s.execucao_id = :e
+				""").param("e", execucao).query(String.class).single()).isEqualTo("2:22");
+	}
+
+	@Test
 	void medidasDaMesmaExecucaoCompartilhamEstudoEExperimentoPorObjeto() throws Exception {
 		UUID documento = enviarPdf(pdfComPaginas("Capacidade 125 mAh/g e tensao 3,4 V"));
 		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
