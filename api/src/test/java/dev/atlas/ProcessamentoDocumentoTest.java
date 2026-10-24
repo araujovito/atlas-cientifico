@@ -175,7 +175,43 @@ class ProcessamentoDocumentoTest {
 				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsBytes(candidata)))
 			.andExpect(status().isUnprocessableEntity());
-		assertThat(jdbc.sql("SELECT count(*) FROM medida").query(Long.class).single()).isZero();
+		assertThat(medidasDaExecucao(execucao)).isZero();
+	}
+
+	@Test
+	void medidasDaMesmaExecucaoCompartilhamEstudoEExperimentoPorObjeto() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("Capacidade 125 mAh/g e tensao 3,4 V"));
+		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
+
+		registrar(documento, execucao, "LiFePO4", "capacidade", "125", "mAh/g", "Capacidade 125 mAh/g");
+		registrar(documento, execucao, "LiFePO4", "tensao", "3,4", "V", "tensao 3,4 V");
+		registrar(documento, execucao, "LiCoO2", "tensao", "3,4", "V", "tensao 3,4 V");
+
+		assertThat(jdbc.sql("SELECT count(*) FROM estudo WHERE execucao_id = :e")
+				.param("e", execucao).query(Long.class).single()).isEqualTo(1);
+		assertThat(medidasDaExecucao(execucao)).isEqualTo(3);
+		assertThat(jdbc.sql("""
+				SELECT count(*) FROM experimento x JOIN estudo s ON s.id = x.estudo_id
+				WHERE s.execucao_id = :e
+				""").param("e", execucao).query(Long.class).single()).isEqualTo(2);
+	}
+
+	private long medidasDaExecucao(UUID execucao) {
+		return jdbc.sql("""
+				SELECT count(*) FROM medida m
+				JOIN experimento x ON x.id = m.experimento_id
+				JOIN estudo s ON s.id = x.estudo_id
+				WHERE s.execucao_id = :e
+				""").param("e", execucao).query(Long.class).single();
+	}
+
+	private void registrar(UUID documento, UUID execucao, String objeto, String metrica, String valor,
+			String unidade, String trecho) throws Exception {
+		var candidata = new dev.atlas.documentos.MedidaCandidata(objeto, metrica, valor, unidade, "REPORTADO", 1, trecho);
+		mvc.perform(post("/api/documentos/{documentoId}/extracoes/{execucaoId}/medidas", documento, execucao)
+				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsBytes(candidata)))
+			.andExpect(status().isOk());
 	}
 
 	private UUID enviarPdf(byte[] conteudo) throws Exception {

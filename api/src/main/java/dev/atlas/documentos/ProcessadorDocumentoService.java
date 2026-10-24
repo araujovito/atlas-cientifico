@@ -193,9 +193,18 @@ public class ProcessadorDocumentoService {
 			}
 		}
 
-		UUID estudoId = jdbc.sql("INSERT INTO estudo (versao_documento_id, execucao_id) VALUES (:documento, :execucao) RETURNING id")
+		// O no-op em DO UPDATE faz o RETURNING devolver o id também quando a linha já existe.
+		UUID estudoId = jdbc.sql("""
+				INSERT INTO estudo (versao_documento_id, execucao_id) VALUES (:documento, :execucao)
+				ON CONFLICT (execucao_id) DO UPDATE SET execucao_id = EXCLUDED.execucao_id
+				RETURNING id
+				""")
 			.param("documento", versaoDocumento).param("execucao", execucaoId).query(UUID.class).single();
-		UUID experimentoId = jdbc.sql("INSERT INTO experimento (estudo_id, objeto) VALUES (:estudo, :objeto) RETURNING id")
+		UUID experimentoId = jdbc.sql("""
+				INSERT INTO experimento (estudo_id, objeto) VALUES (:estudo, :objeto)
+				ON CONFLICT (estudo_id, objeto) DO UPDATE SET objeto = EXCLUDED.objeto
+				RETURNING id
+				""")
 			.param("estudo", estudoId).param("objeto", medida.objeto().trim()).query(UUID.class).single();
 		UUID medidaId = jdbc.sql("""
 				INSERT INTO medida (experimento_id, metrica, valor_original, unidade_original, estado)
