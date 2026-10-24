@@ -163,3 +163,18 @@ O autor delegou a escolha ao revisor. Foram tomados só os itens de risco claro 
 - Interface: botão de operação travado durante a consulta; `documentId` e `executionId` restaurados se abrir a evidência pela comparação falhar. Sem teste de navegador.
 
 Continuam fora, pelos motivos já listados: índice e `SKIP LOCKED` na fila, N+1 do catálogo, corpo sem limite do OpenAlex, healthcheck do worker, corridas restantes da tela e as lacunas de teste.
+
+### Fechamento da lista — 2026-10-24
+
+O autor pediu para tratar o que tinha ficado de fora. O CI do commit final passou com **134 testes, 0 falhas, 0 erros, 0 ignorados**, incluindo os 6 fluxos Chromium.
+
+| Item | Commit (assunto) | Observação |
+|---|---|---|
+| Reserva da fila com OR sem índice; limpeza sem `SKIP LOCKED`; índices de ordenação | `perf(fila)` + V15 | Dois ramos por índice parcial; a exclusão passou a ser do UPDATE condicional (FOR UPDATE não vale com UNION). Ganho **não medido** |
+| N+1 do catálogo e metadados no grafo | `perf(catalogo)` | 1 + 3N consultas viraram 3; ganho não medido |
+| Corpo do OpenAlex sem limite | `fix(openalex)` | 2 MiB, leitura em fluxo; teste com obra válida e enchimento |
+| Worker sem healthcheck | `feat(deploy)` | Arquivo de batimento; testes unitários passaram, mas **o compose não foi executado** nesta máquina |
+| Corridas e erros da tela | `fix(ui)` ×2 | Números de operação, paginação do grafo protegida, prazo de 120 s, erro de rede em português; só sintaxe local e CI |
+| Lacunas de teste | `test(...)` ×3 | Cadeia de revisões, AUSENTE, 404, concorrência real do `FOR UPDATE`, bordas do avaliador, grafo A→B→A, telemetria pelo worker real |
+
+Segue em aberto, por exigir decisão ou medição: contas por usuário, S3, memória real dos contêineres sob carga, `server.error.include-message` (mantido: a tela depende do `detail`), limite de crescimento dos metadados por obra, teste de navegador para busca/paginação/histórico, execução da CLI do avaliador e smoke do compose com o healthcheck novo.
