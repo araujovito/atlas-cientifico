@@ -1,0 +1,22 @@
+# Proxy TLS do Atlas. O Caddy obtém e renova o certificado sozinho (Let's Encrypt) para ATLAS_DOMINIO,
+# que precisa apontar para este servidor, com as portas 80 e 443 abertas.
+{$ATLAS_DOMINIO} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	# Um pouco acima do limite de envio da aplicação (21 MiB de requisição); o resto é recusado antes de chegar nela.
+	request_body {
+		max_size 25MB
+	}
+
+	# O Caddy acrescenta o endereço da conexão ao fim de X-Forwarded-For. A aplicação lê o ÚLTIMO valor,
+	# que é o que este proxy confiável escreveu, e ignora o que o cliente tenha mandado antes.
+	reverse_proxy api:8080
+}

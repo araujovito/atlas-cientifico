@@ -48,6 +48,9 @@ jobs:
       - name: Provar cópia e restauração (ida e volta)
         run: bash deploy/backup-teste.sh
 
+      - name: Validar o overlay do proxy TLS
+        run: bash deploy/proxy-teste.sh
+
       # Guarda os relatórios quando algo falha, para ler o motivo sem reproduzir localmente.
       - name: Guardar relatórios dos testes
         if: failure()
