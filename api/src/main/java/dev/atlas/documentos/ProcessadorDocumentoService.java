@@ -203,23 +203,27 @@ public class ProcessadorDocumentoService {
 				.param("execucao", execucaoId).param("pagina", medida.pagina())
 				.query(String.class).optional()
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "A página informada não existe nesta extração."));
-			trecho = trecho.trim();
-			int inicioUtf16 = textoPagina.indexOf(trecho);
-			if (inicioUtf16 < 0) {
-				throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "O trecho informado não aparece literalmente na página.");
+			var achado = LocalizadorDeTrecho.localizar(textoPagina, trecho);
+			if (achado.situacao() == LocalizadorDeTrecho.Situacao.AUSENTE) {
+				throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+					"O trecho informado não aparece na página (só diferenças de espaço e de quebra de linha são toleradas).");
 			}
-			// Posição ambígua: o destaque apontaria para a primeira ocorrência, que pode não ser a citada.
-			if (textoPagina.indexOf(trecho, inicioUtf16 + 1) >= 0) {
+			// Posição ambígua: o destaque apontaria para uma ocorrência que pode não ser a citada.
+			if (achado.situacao() == LocalizadorDeTrecho.Situacao.AMBIGUO) {
 				throw new ResponseStatusException(HttpStatus.CONFLICT,
 					"O trecho aparece mais de uma vez nesta página. Amplie o trecho para identificar a ocorrência.");
 			}
 			// REPORTADO afirma que o valor está no texto; a evidência precisa conter o que ela sustenta.
-			if ("REPORTADO".equals(medida.estado()) && !trecho.contains(medida.valorOriginal().trim())) {
+			if ("REPORTADO".equals(medida.estado())
+					&& !LocalizadorDeTrecho.normalizar(achado.trechoOriginal())
+						.contains(LocalizadorDeTrecho.normalizar(medida.valorOriginal()))) {
 				throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
 					"O valor informado não aparece no trecho. Use PENDENTE_REVISAO ou INFERIDO se ele não foi reportado literalmente.");
 			}
-			inicioCaractere = textoPagina.codePointCount(0, inicioUtf16);
-			fimCaractere = inicioCaractere + trecho.codePointCount(0, trecho.length());
+			// Guarda o trecho como está na página, não como foi digitado.
+			trecho = achado.trechoOriginal();
+			inicioCaractere = achado.inicio();
+			fimCaractere = achado.fim();
 		}
 
 		// O no-op em DO UPDATE faz o RETURNING devolver o id também quando a linha já existe.

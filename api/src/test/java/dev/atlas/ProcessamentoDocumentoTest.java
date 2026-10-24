@@ -327,6 +327,22 @@ class ProcessamentoDocumentoTest {
 	}
 
 	@Test
+	void aceitaTrechoQueAtravessaQuebraDeLinhaEGuardaOTextoOriginalDaPagina() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("placeholder"));
+		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
+		jdbc.sql("UPDATE pagina_texto SET texto = :t WHERE execucao_id = :e AND numero = 1")
+				.param("t", "Medimos a capacidade\nde 125 mAh/g depois.").param("e", execucao).update();
+
+		registrar(documento, execucao, "LiFePO4", "capacidade", "125", "mAh/g", "capacidade de 125 mAh/g");
+
+		assertThat(jdbc.sql("""
+				SELECT e.trecho FROM evidencia e JOIN medida m ON m.id = e.medida_id
+				JOIN experimento x ON x.id = m.experimento_id JOIN estudo s ON s.id = x.estudo_id
+				WHERE s.execucao_id = :e
+				""").param("e", execucao).query(String.class).single()).isEqualTo("capacidade\nde 125 mAh/g");
+	}
+
+	@Test
 	void medidasDaMesmaExecucaoCompartilhamEstudoEExperimentoPorObjeto() throws Exception {
 		UUID documento = enviarPdf(pdfComPaginas("Capacidade 125 mAh/g e tensao 3,4 V"));
 		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
