@@ -64,8 +64,16 @@ services:
     environment:
       <<: *environment
       ATLAS_FILA_ATIVA: "true"
+      ATLAS_FILA_ARQUIVO_SAUDE: /tmp/worker-vivo
       SPRING_MAIN_WEB_APPLICATION_TYPE: none
     volumes: [documentos:/data/documentos:ro]
+    # Sem web não há /actuator/health: o laço do worker toca o arquivo a cada ciclo (1 s).
+    healthcheck:
+      test: [CMD-SHELL, "find /tmp/worker-vivo -mmin -1 | grep -q ."]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
 
 volumes:
   postgres:

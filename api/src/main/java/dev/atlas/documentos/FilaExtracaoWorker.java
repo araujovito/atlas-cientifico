@@ -17,15 +17,29 @@ public class FilaExtracaoWorker {
     private final FilaExtracaoService fila;
     private final ProcessadorDocumentoService processador;
     private final boolean ativa;
+    private final java.nio.file.Path arquivoSaude;
     private final MeterRegistry metrics;
     private final ObservationRegistry observations;
     public FilaExtracaoWorker(FilaExtracaoService fila, ProcessadorDocumentoService processador,
-            @Value("${atlas.fila.ativa:true}") boolean ativa, MeterRegistry metrics, ObservationRegistry observations) {
+            @Value("${atlas.fila.ativa:true}") boolean ativa, MeterRegistry metrics, ObservationRegistry observations,
+            @Value("${atlas.fila.arquivo-saude:}") String arquivoSaude) {
+        this.arquivoSaude=arquivoSaude.isBlank() ? null : java.nio.file.Path.of(arquivoSaude);
         this.fila=fila; this.processador=processador; this.ativa=ativa; this.metrics=metrics; this.observations=observations;
     }
 
     @Scheduled(fixedDelayString="${atlas.fila.intervalo-ms:1000}",initialDelayString="${atlas.fila.inicio-ms:1000}")
-    public void tick() { if(ativa) executarUma(); }
+    public void tick() {
+        if(!ativa) return;
+        executarUma();
+        batimento();
+    }
+
+    /** Sem servidor web não há /actuator/health; o contêiner confere se este arquivo foi tocado há pouco. */
+    private void batimento() {
+        if(arquivoSaude==null) return;
+        try { java.nio.file.Files.write(arquivoSaude,new byte[0]); }
+        catch(java.io.IOException e) { log.warn("Não foi possível gravar o arquivo de saúde {}",arquivoSaude,e); }
+    }
 
     public boolean executarUma() {
         var proxima=fila.reservar();
