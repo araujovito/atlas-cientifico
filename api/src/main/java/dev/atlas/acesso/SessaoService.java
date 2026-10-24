@@ -36,7 +36,16 @@ public class SessaoService {
                     rs.getObject("usuario_id")==null?null:new Usuario(rs.getObject("usuario_id",UUID.class),rs.getString("email")),
                     rs.getString("csrf_token"),rs.getTimestamp("expira_em").toInstant())).optional();
     }
+    /** Teto de pré-sessões anônimas vivas: sem ele, um laço de GET /api/auth/sessao enche a tabela. */
+    public static final int ANONIMAS_MAXIMAS=5000;
+
+    /** Remove sessões vencidas; sem isto as linhas nunca saem da tabela. */
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelay=600_000,initialDelay=60_000)
+    public int limparExpiradas(){return jdbc.sql("DELETE FROM sessao WHERE expira_em<=now()").update();}
+
     public Criada criar(Usuario usuario) {
+        if(usuario==null && jdbc.sql("SELECT count(*) FROM sessao WHERE usuario_id IS NULL AND expira_em>now()").query(Long.class).single()>=ANONIMAS_MAXIMAS)
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Muitas sessões abertas. Tente novamente em alguns minutos.");
         String token=token(),csrf=HexFormat.of().formatHex(bytes());
         Instant expira=Instant.now().plusSeconds(usuario==null?1800:28800);
         jdbc.sql("INSERT INTO sessao(token_hash,usuario_id,csrf_token,expira_em) VALUES (:h,:u,:c,:e)")

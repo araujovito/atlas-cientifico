@@ -21,6 +21,27 @@ class ContaAutenticacaoTest {
     @Autowired MockMvc mvc;
     @Autowired JdbcClient jdbc;
     @Autowired SessaoService sessoes;
+    private void inserirAnonimas(int quantidade,String expiraEm){
+        jdbc.sql("INSERT INTO sessao(token_hash,usuario_id,csrf_token,criado_em,expira_em) SELECT encode(sha256(gen_random_uuid()::text::bytea),'hex'),NULL,'c',now()-interval '1 hour',"+expiraEm
+                +" FROM generate_series(1,:n)").param("n",quantidade).update();
+    }
+    @Test void limpezaRemoveSessoesVencidasEMantemAsVivas() {
+        inserirAnonimas(3,"now()-interval '1 minute'");
+        var viva=sessoes.criar(null);
+        assertThat(sessoes.limparExpiradas()).isGreaterThanOrEqualTo(3);
+        assertThat(jdbc.sql("SELECT count(*) FROM sessao WHERE expira_em<=now()").query(Long.class).single()).isZero();
+        assertThat(sessoes.carregar(viva.token())).isPresent();
+    }
+    @Test void tetoDePreSessoesAnonimasRecusaComServicoIndisponivel() {
+        long vivas=jdbc.sql("SELECT count(*) FROM sessao WHERE usuario_id IS NULL AND expira_em>now()").query(Long.class).single();
+        inserirAnonimas((int)(SessaoService.ANONIMAS_MAXIMAS-vivas),"now()+interval '5 minutes'");
+        try {
+            assertThatThrownBy(() -> sessoes.criar(null)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                    .satisfies(e -> assertThat(((org.springframework.web.server.ResponseStatusException)e).getStatusCode().value()).isEqualTo(503));
+        } finally {
+            jdbc.sql("DELETE FROM sessao WHERE usuario_id IS NULL AND csrf_token='c'").update();
+        }
+    }
     @Test void cadastraComArgon2idECookieERotacionaSessaoNoLogin() throws Exception {
         String email="conta-"+UUID.randomUUID()+"@example.com";
         var c=cadastrar(mvc,email);
