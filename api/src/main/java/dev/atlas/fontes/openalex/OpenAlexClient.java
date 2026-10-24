@@ -30,6 +30,8 @@ import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class OpenAlexClient implements AutoCloseable {
+	/** Respostas legítimas (20 obras com select, ou milhares de ids de referências) ficam bem abaixo disto. */
+	static final int TAMANHO_MAXIMO_BYTES = 2 * 1024 * 1024;
 	private final OpenAlexProperties properties;
 	private final ObjectMapper mapper;
 	private final HttpClient http;
@@ -129,7 +131,7 @@ public class OpenAlexClient implements AutoCloseable {
 			request.header("Authorization", "Bearer " + properties.chaveApi().strip());
 		}
 		HttpResponse<String> response;
-		var pendente = http.sendAsync(request.GET().build(), HttpResponse.BodyHandlers.ofString());
+		var pendente = http.sendAsync(request.GET().build(), info -> new CorpoLimitado(TAMANHO_MAXIMO_BYTES));
 		try {
 			// No Java 21, HttpRequest.timeout não cobre um corpo que fica lento após os cabeçalhos.
 			response = pendente.get(properties.tempoLimite().toNanos(), TimeUnit.NANOSECONDS);
@@ -226,5 +228,32 @@ public class OpenAlexClient implements AutoCloseable {
 	@PreDestroy
 	public void close() {
 		http.close();
+	}
+
+	/** Interrompe a leitura ao passar do limite, em vez de acumular o corpo inteiro na memória. */
+	private static final class CorpoLimitado implements HttpResponse.BodySubscriber<String> {
+		private final HttpResponse.BodySubscriber<String> interno = HttpResponse.BodySubscribers.ofString(java.nio.charset.StandardCharsets.UTF_8);
+		private final long limite;
+		private long total;
+		private boolean excedido;
+		private java.util.concurrent.Flow.Subscription assinatura;
+
+		CorpoLimitado(long limite) { this.limite = limite; }
+
+		@Override public java.util.concurrent.CompletionStage<String> getBody() { return interno.getBody(); }
+		@Override public void onSubscribe(java.util.concurrent.Flow.Subscription s) { assinatura = s; interno.onSubscribe(s); }
+		@Override public void onNext(List<java.nio.ByteBuffer> itens) {
+			if (excedido) return;
+			for (var item : itens) total += item.remaining();
+			if (total > limite) {
+				excedido = true;
+				assinatura.cancel();
+				interno.onError(new java.io.IOException("Resposta maior que o limite."));
+				return;
+			}
+			interno.onNext(itens);
+		}
+		@Override public void onError(Throwable erro) { if (!excedido) interno.onError(erro); }
+		@Override public void onComplete() { if (!excedido) interno.onComplete(); }
 	}
 }

@@ -206,6 +206,13 @@ class OpenAlexClientTest {
 	}
 
 	@Test
+	void recusaCorpoMaiorQueOLimiteSemCarregaloInteiro() {
+		// Obra válida com enchimento: sem o limite a chamada teria sucesso, então o 502 vem do tamanho.
+		resposta.set(OBRA.strip().replaceFirst("}$", ",\"enchimento\":\"" + "a".repeat(OpenAlexClient.TAMANHO_MAXIMO_BYTES + 1) + "\"}"));
+		esperarErro(502, () -> client.buscarPorDoi(DOI));
+	}
+
+	@Test
 	void buscaPorTemaAutorEAnoCodificaFiltrosEPaginacao() {
 		resposta.set("{\"meta\":{\"count\":12},\"results\":["+OBRA+"]}");
 		var pagina = client.buscar("lithium & capacity", "https://openalex.org/A123",2022,2,5);
