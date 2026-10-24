@@ -180,3 +180,8 @@ O autor pediu para tratar o que tinha ficado de fora. O CI do commit final passo
 Segue em aberto, por exigir decisão ou medição: contas por usuário, S3, memória real dos contêineres sob carga, `server.error.include-message` (mantido: a tela depende do `detail`) e smoke do compose com o healthcheck novo.
 
 Fechados depois da tabela: metadados por obra limitados a 20 por resposta (o banco guarda todos), teste de navegador para busca/paginação e para o histórico de revisões, e teste da CLI do avaliador com a fixture sintética.
+
+### Fase A de contas — leitura independente (2026-10-24)
+
+Cinco commits do Codex (V16, Argon2id e sessões, isolamento por dono com IDOR, procedência, tela) e um trabalho sem commit foram revistos por dois agentes e por mim. Rodei por classe os testes de contas, migração, isolamento, catálogo, fila, upload e processamento (passaram); a suíte completa fica para o CI. Achados corrigidos e os limites que seguem abertos estão em [contas-e-hospedagem.md](contas-e-hospedagem.md). O principal limite aberto é a ausência de limite de tentativas de login e cadastro.
+

@@ -45,6 +45,23 @@ O autor permitiu **compartilhamento posteriormente**. Não foi criada rota de or
 
 Fontes: [senhas no Spring](https://docs.spring.io/spring-security/reference/7.0/features/authentication/password-storage.html), [CSRF com pré-sessão de login](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html) e [Bouncy Castle](https://www.bouncycastle.org/download/bouncy-castle-java/). Não substituem os testes nem revisão independente.
 
+### Revisão independente da Fase A (2026-10-24, segundo agente)
+
+Dois agentes leram o código sem executá-lo (autenticação e sessão; autorização por rota); conferi os achados antes de agir. Não encontraram IDOR explorável: o interceptor `AutorizacaoRecursos` nega por padrão, as 15 rotas privadas têm teste de B=404, e o dedupe por `(dono, sha256)` não revela documentos alheios.
+
+Corrigido nesta revisão: caminho com `..` agora é normalizado antes do filtro; `Origin` do domínio público atrás de proxy TLS é aceito por configuração (`ATLAS_ORIGENS_PERMITIDAS`), sem confiar em `X-Forwarded-*`; sessões vencidas são apagadas e há teto de 5000 pré-sessões anônimas; o login renova a pré-sessão vencida.
+
+**Limites conhecidos que continuam (Fase B ou decisão):**
+
+- **Sem limite de tentativas.** Login e cadastro rodam Argon2id de 19 MiB por chamada e a pré-sessão necessária é gratuita: há risco de força bruta de senha e de esgotar CPU/memória. É o primeiro item da Fase B e **precisa existir antes de expor o site**.
+- **Enumeração de e-mails.** O cadastro devolve 409 para e-mail existente e 201 para novo; com `LISTA`, o 403 revela quem está na lista. É inerente ao cadastro aberto sem confirmação por e-mail.
+- **Cookie `__Host-`.** Exige `Secure`: funciona em `http://localhost` e `127.0.0.1` nos navegadores atuais, mas é descartado em `http://` com IP de rede local e no Safari. Para qualquer uso fora da máquina, TLS é obrigatório.
+- **Autorização só no interceptor.** Os serviços (`FilaExtracaoService`, `ProcessadorDocumentoService`, `RevisaoService`, `associarDocumento`) não verificam o dono. Um chamador novo fora do interceptor (job, rota com variável de outro nome) vazaria. Não há esse caminho hoje; falta teste direto de serviço com dono errado.
+- **Chave de objeto compartilhada.** Dois donos com o mesmo PDF apontam para o mesmo `hash.pdf`. Exclusão por documento exigirá contar referências.
+- **Citações públicas.** `POST /api/catalogo/obras/{obra}/citacoes` aciona consulta externa para qualquer conta: abuso de cota do OpenAlex, não vazamento.
+- **Sessão de 8 h absoluta**, sem renovação nem revogação em massa.
+- Não testado: atrás de proxy real, em Safari/Firefox, nem o smoke Docker com contas.
+
 ## Fase B — limites para quem é público
 
 - Limite de taxa por usuário e por IP em upload, processamento e nas rotas que chamam o OpenAlex.
