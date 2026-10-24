@@ -194,6 +194,11 @@ class InterfaceNavegadorTest {
 		assertThat(pagina.locator("#measure-list article").first()).containsText("REPORTADO");
 		pagina.locator("#compare-measures").click();
 		assertThat(pagina.locator("#comparison-result")).containsText("PENDENTE_REVISAO / v1");
+		// O histórico fica dentro de <details>; o texto está no DOM mesmo recolhido.
+		pagina.locator("#measure-list article").first().getByText("Ver atual / revisar").click();
+		assertThat(pagina.locator("#review-history")).containsText("Pessoa de teste");
+		assertThat(pagina.locator("#review-history")).containsText("Falta conferir o contexto.");
+		assertThat(pagina.locator("#review-history")).containsText("160");
 	}
 
 	@Test
