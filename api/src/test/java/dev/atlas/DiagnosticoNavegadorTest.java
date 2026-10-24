@@ -20,6 +20,11 @@ import org.springframework.context.annotation.Import;
 class DiagnosticoNavegadorTest {
 	@LocalServerPort int porta;
 
+	@org.springframework.test.context.DynamicPropertySource
+	static void cookie(org.springframework.test.context.DynamicPropertyRegistry registry) {
+		registry.add("atlas.contas.cookie-seguro", () -> !"webkit".equals(System.getProperty("atlas.navegador")));
+	}
+
 	private static String descrever(java.util.List<com.microsoft.playwright.options.Cookie> cookies) {
 		return cookies.stream().map(c -> c.name + "{secure=" + c.secure + ",httpOnly=" + c.httpOnly + ",sameSite=" + c.sameSite + ",path=" + c.path + "}")
 				.collect(java.util.stream.Collectors.joining("; ", "[", "]"));

@@ -29,7 +29,7 @@ public class ContaController {
         return r.getRemoteAddr();
     }
     @GetMapping("/sessao") public Estado estado(HttpServletRequest request,HttpServletResponse response){
-        String token=request.getCookies()==null?null:Arrays.stream(request.getCookies()).filter(c->c.getName().equals(SessaoService.COOKIE)).map(Cookie::getValue).findFirst().orElse(null);
+        String token=request.getCookies()==null?null:Arrays.stream(request.getCookies()).filter(c->c.getName().equals(sessoes.nomeCookie())).map(Cookie::getValue).findFirst().orElse(null);
         var existente=sessoes.carregar(token);
         if(existente.isPresent()) return new Estado(existente.get().usuario(),existente.get().csrf());
         limites.consumir("sessao:"+ip(request),config.sessaoPorIp(),config.sessaoJanela());
@@ -104,6 +104,6 @@ public class ContaController {
         return new Estado(criada.sessao().usuario(),criada.sessao().csrf());
     }
     private void cookie(HttpServletResponse r,String valor,Duration idade){
-        r.addHeader("Set-Cookie",ResponseCookie.from(SessaoService.COOKIE,valor).path("/").httpOnly(true).secure(true).sameSite("Strict").maxAge(idade).build().toString());
+        r.addHeader("Set-Cookie",ResponseCookie.from(sessoes.nomeCookie(),valor).path("/").httpOnly(true).secure(sessoes.cookieSeguro()).sameSite("Strict").maxAge(idade).build().toString());
     }
 }

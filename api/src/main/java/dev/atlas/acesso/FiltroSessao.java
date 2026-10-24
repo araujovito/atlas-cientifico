@@ -30,7 +30,7 @@ public class FiltroSessao extends OncePerRequestFilter {
     @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain) throws IOException,ServletException {
         String path=FiltroChaveApi.normalizar(request.getRequestURI());
         response.setHeader("Cache-Control","no-store");
-        String token=request.getCookies()==null?null:Arrays.stream(request.getCookies()).filter(c->c.getName().equals(SessaoService.COOKIE)).map(Cookie::getValue).findFirst().orElse(null);
+        String token=request.getCookies()==null?null:Arrays.stream(request.getCookies()).filter(c->c.getName().equals(sessoes.nomeCookie())).map(Cookie::getValue).findFirst().orElse(null);
         var sessao=sessoes.carregar(token).orElse(null);
         if(path.equals("/api/auth/sessao") && request.getMethod().equals("GET")){chain.doFilter(request,response);return;}
         boolean entrada=path.equals("/api/auth/login") || path.equals("/api/auth/cadastro") || path.equals("/api/auth/recuperar");

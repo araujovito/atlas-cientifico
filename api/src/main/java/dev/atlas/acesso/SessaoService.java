@@ -15,6 +15,10 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class SessaoService {
     public static final String COOKIE="__Host-atlas-sessao";
+    /** Nome do cookie sem o prefixo __Host-, que só existe com Secure. Usado apenas quando cookie-seguro=false. */
+    public static final String COOKIE_SEM_TLS="atlas-sessao";
+    private static final org.slf4j.Logger log=org.slf4j.LoggerFactory.getLogger(SessaoService.class);
+    private final boolean cookieSeguro;
     public record Usuario(UUID id,String email) {}
     public record Sessao(String hash,Usuario usuario,String csrf,Instant expiraEm) {}
     public record Criada(String token,Sessao sessao) {}
@@ -29,7 +33,13 @@ public class SessaoService {
     private final Argon2PasswordEncoder encoder=new Argon2PasswordEncoder(16,32,1,19456,2);
     private final String hashInexistente=encoder.encode("somente-para-equalizar-o-caminho-de-login");
 
-    public SessaoService(JdbcClient jdbc,TransactionTemplate tx,PoliticaContas politica){this.jdbc=jdbc;this.tx=tx;this.politica=politica;}
+    public SessaoService(JdbcClient jdbc,TransactionTemplate tx,PoliticaContas politica,
+            @org.springframework.beans.factory.annotation.Value("${atlas.contas.cookie-seguro:true}") boolean cookieSeguro){
+        this.jdbc=jdbc;this.tx=tx;this.politica=politica;this.cookieSeguro=cookieSeguro;
+        if(!cookieSeguro) log.warn("atlas.contas.cookie-seguro=false: o cookie de sessão sai SEM Secure e SEM o prefixo __Host-. Use só em http://localhost, para navegadores que recusam Secure sem HTTPS (Safari). Nunca em produção.");
+    }
+    public boolean cookieSeguro(){return cookieSeguro;}
+    public String nomeCookie(){return cookieSeguro?COOKIE:COOKIE_SEM_TLS;}
     public Optional<Sessao> carregar(String token) {
         if(token==null || !token.matches("[A-Za-z0-9_-]{43}")) return Optional.empty();
         return jdbc.sql("""

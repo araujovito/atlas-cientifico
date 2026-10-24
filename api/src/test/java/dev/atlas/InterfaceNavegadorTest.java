@@ -51,6 +51,8 @@ class InterfaceNavegadorTest {
 	@DynamicPropertySource
 	static void propriedades(DynamicPropertyRegistry registry) {
 		registry.add("atlas.documentos.diretorio", () -> DIRETORIO_UPLOAD.toString());
+		// O WebKit (Safari) não guarda cookie Secure em http://127.0.0.1, ao contrário de Chromium e Firefox.
+		registry.add("atlas.contas.cookie-seguro", () -> !"webkit".equals(System.getProperty("atlas.navegador")));
 	}
 
 	@BeforeAll
