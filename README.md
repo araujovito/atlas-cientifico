@@ -24,6 +24,27 @@ cd api
 Os testes de integração usam Testcontainers e precisam de Docker.
 O GitHub Actions executa essa mesma suíte em pushes e pull requests para `main`.
 
+## Executar a API
+
+```bash
+docker compose up -d        # PostgreSQL 18 em 127.0.0.1:5433
+cd api
+./mvnw spring-boot:run      # http://localhost:8080
+```
+
+As variáveis `ATLAS_DB_URL`, `ATLAS_DB_USER` e `ATLAS_DB_PASSWORD` mudam a conexão; os padrões servem só para a máquina local. `ATLAS_DOCUMENTOS_DIR` define onde os PDFs ficam (padrão `./data/documentos`) e `atlas.documentos.paginas-maximas` limita as páginas por PDF (padrão 500). `GET /actuator/health` é o único endpoint operacional exposto.
+
+## Limites conhecidos de segurança e de escala
+
+Este é um projeto de portfólio em desenvolvimento, e os pontos abaixo não estão resolvidos:
+
+- **Não há autenticação nem dono do documento.** Quem alcança a porta lê e grava em qualquer documento, e enviar um PDF já existente devolve o registro de quem o enviou antes. Não exponha a API à internet.
+- **A autorização para processar é uma declaração**, uma caixa marcada, sem identidade de quem declarou. Registra a afirmação, não a comprova.
+- **Os PDFs e o texto extraído ficam sem criptografia**, em disco e no banco, e não há endpoint de exclusão nem política de retenção.
+- **A extração é síncrona**, dentro da requisição, com limite de páginas mas sem limite de tempo; os endpoints de listagem não têm paginação; o armazenamento é o disco local de uma instância.
+
+A revisão que originou esta lista, com o que foi corrigido e o que segue aberto, está em [docs/revisao-cruzada.md](docs/revisao-cruzada.md).
+
 ## Upload mínimo
 
 Com a API em execução, abra `http://localhost:8080/` para usar a tela mínima: enviar um PDF autorizado, processar o texto e registrar ou consultar medidas com evidência. O registro de medidas é manual; a interface não afirma que houve extração automática.
