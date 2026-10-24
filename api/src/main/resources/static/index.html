@@ -194,7 +194,14 @@
       try { sessionStorage.setItem('atlas-chave', chave); } catch { /* sem armazenamento: usa só o campo */ }
       options = { ...options, headers: { ...(options.headers || {}), 'X-Atlas-Chave': chave } };
     }
-    const response = await fetch(url, options);
+    // Sem prazo, um servidor que não responde deixaria a tela travada com os botões desabilitados.
+    if (!options.signal && typeof AbortSignal.timeout === 'function') options = { ...options, signal: AbortSignal.timeout(120000) };
+    let response;
+    try { response = await fetch(url, options); }
+    catch (error) {
+      throw new Error(error.name === 'TimeoutError' ? 'O servidor demorou demais para responder.'
+        : 'Não foi possível falar com o servidor. Verifique a conexão e tente novamente.');
+    }
     if (!response.ok) {
       let detail = `A solicitação falhou (${response.status}).`;
       try { detail = (await response.json()).detail || detail; } catch { /* usa a mensagem padrão */ }
@@ -242,6 +249,8 @@
     if (button.disabled) return;
     button.disabled = true;
     const chosenWork = activeWorkId;
+    // Um envio novo invalida o acompanhamento anterior: se falhar antes de criar a tarefa, "Retomar" não reabre um job velho.
+    try { sessionStorage.removeItem('atlas-processamento'); document.querySelector('#resume-processing').hidden = true; } catch { /* opcional */ }
     resetDocument();
     showStatus('Enviando PDF e extraindo o texto…');
     try {
