@@ -1,0 +1,72 @@
+# Instância privada de um operador. Não publique a porta sem TLS e contas individuais.
+x-app: &app
+  image: atlas-local:${ATLAS_IMAGE_TAG:-dev}
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=256m,uid=10001,gid=10001
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  restart: unless-stopped
+  mem_limit: 1g
+  cpus: 1.0
+  pids_limit: 128
+  depends_on:
+    db:
+      condition: service_healthy
+  environment: &environment
+    ATLAS_DB_URL: jdbc:postgresql://db:5432/atlas
+    ATLAS_DB_USER: atlas
+    ATLAS_DB_PASSWORD: ${ATLAS_DB_PASSWORD:?Defina ATLAS_DB_PASSWORD}
+    ATLAS_CHAVE_API: ${ATLAS_CHAVE_API:?Defina ATLAS_CHAVE_API}
+    OPENALEX_API_KEY: ${OPENALEX_API_KEY:-}
+    ATLAS_FILA_ATIVA: "false"
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: atlas
+      POSTGRES_USER: atlas
+      POSTGRES_PASSWORD: ${ATLAS_DB_PASSWORD:?Defina ATLAS_DB_PASSWORD}
+    volumes: [postgres:/var/lib/postgresql]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U atlas -d atlas"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 512m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+  api:
+    <<: *app
+    ports: ["127.0.0.1:${ATLAS_PORT:-8081}:8080"]
+    volumes: [documentos:/data/documentos]
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://localhost:8080/actuator/health]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+  worker:
+    <<: *app
+    environment:
+      <<: *environment
+      ATLAS_FILA_ATIVA: "true"
+      SPRING_MAIN_WEB_APPLICATION_TYPE: none
+    volumes: [documentos:/data/documentos:ro]
+
+volumes:
+  postgres:
+  documentos:

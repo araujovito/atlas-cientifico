@@ -1,0 +1,8 @@
+*
+!deploy/
+!deploy/Dockerfile
+!api/
+api/*
+!api/target/
+api/target/*
+!api/target/atlas-0.0.1-SNAPSHOT.jar
