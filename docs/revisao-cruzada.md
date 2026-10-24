@@ -123,3 +123,32 @@ Limites observados, não corrigidos (comportamento aceitável hoje, a decidir se
 6. **A versão do Playwright (1.63.0) e a do `exec-maven-plugin` só foram confirmadas pela resolução local do Maven**; o passo novo do CI ainda não rodou.
 
 Nenhuma alteração de código foi feita nesta revisão. Isto não prova ausência de defeitos: o que não foi lido (testes, `index.html` e os scripts além da busca por padrões de risco) não foi avaliado.
+
+### Segunda passada com quatro agentes — 2026-10-24
+
+Quatro agentes de leitura (segurança; escalabilidade e concorrência; testes e corretude; interface e operação) receberam os mesmos 24 commits. Eles só leem e relatam; cada achado foi conferido por mim no código antes de qualquer mudança, e os que não foram conferidos aparecem como tal.
+
+**Corrigidos, cada um em commit próprio, com teste:**
+
+| Commit | Achado | Como foi verificado |
+|---|---|---|
+| `d153808` | O filtro da chave usava o URI bruto: `/api;x=1/...` pulava a chave e chegava ao controlador | Teste de MockMvc reproduziu no filtro antigo (404 do controlador, não 401); passou após normalizar o URI. `/%61pi` e `//api` cobertos só em teste unitário da normalização, porque o MockMvc não os representa fielmente |
+| `6fab038` | 503 de "parsers ocupados" consumia uma das 3 tentativas da fila, e o caminho síncrono divide os mesmos 2 slots | Li que `POST /processar` usa o mesmo extrator; teste novo do `devolver` |
+| `b38bb84` | Mesmo DOI com outro identificador OpenAlex era aceito, contra o "409" do roteiro | Teste novo (409 e um único id) |
+| `505d037` | `AUSENTE` esperado e obtido somava acertos de valor, unidade e evidência (null == null) | Li o laço; teste passou a afirmar zero nas três contagens |
+| `86bda0a` | A obra escolhida valia para todos os PDFs seguintes | Li o fluxo de envio; sem teste de navegador novo |
+| `446696a` | Três linhas do roteiro afirmavam Chromium ou CLI testada sem teste correspondente | `grep` nos testes |
+
+**Refutado:** a contagem de "96 testes" do agente de testes. O log do CI do push `efff491` mostra 117 executados, 0 falhas.
+
+**Não corrigido, com a razão:**
+
+- Fila: o `WHERE ... OR` de `reservar` pode não usar `tarefa_pendente_idx`, o UPDATE de esgotadas não usa `SKIP LOCKED`, e uma tarefa que termina logo depois de a reserva expirar pode virar `FALHOU` com a execução já gravada. Plausível; sem `EXPLAIN` nem teste de concorrência. Heartbeat da reserva seria mudança de desenho.
+- Catálogo e citações: N+1 (até 1 + 3N consultas por página), `obter` carrega todos os metadados, o grafo lê o snapshot inteiro a cada página e há paginação por OFFSET sem índice de ordenação. Confirmado por leitura, sem medição de carga.
+- Memória: soma de `-Xmx384m` e dois filhos de 256 MiB contra `mem_limit: 1g` não considera metaspace e buffers nativos. Não medido.
+- OpenAlex: corpo sem limite de tamanho e chave enviada se `urlBase` for `http`. Configuração do operador, não entrada de usuário.
+- Interface: corridas em `discover`, `refreshLibrary` e `citationWork`, botão "Atualizar operação" sem trava, `documentId` trocado antes de `/paginas` falhar, chave `atlas-processamento` nunca limpa, sem timeout em `fetch`, `limite=100` sem aviso. Lidos pelo agente, não reproduzidos.
+- Testes ausentes: cadeia de revisões v2, concorrência real do `FOR UPDATE`, correção para `AUSENTE`, referência vazia e limite de 10000 no avaliador, CLI do avaliador, `TelemetriaTest` com `doesNotContain` que não passa pelo worker real, `CitacaoTest` com um único caso.
+- Operação: `server.error.include-message=always` vale para qualquer exceção em `/error`; worker sem healthcheck; `max-request-size` igual a `max-file-size`.
+
+Nada disso prova que o restante está correto: os agentes leram, não executaram, e a suíte completa roda no CI.
