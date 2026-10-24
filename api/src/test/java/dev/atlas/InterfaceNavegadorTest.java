@@ -57,7 +57,13 @@ class InterfaceNavegadorTest {
 	static void abrirNavegador() {
 		com.microsoft.playwright.assertions.PlaywrightAssertions.setDefaultAssertionTimeout(15000);
 		playwright = Playwright.create();
-		navegador = playwright.chromium().launch();
+		// -Datlas.navegador=firefox|webkit repete a classe em outro motor; o padrão é Chromium.
+		navegador = switch (System.getProperty("atlas.navegador", "chromium")) {
+			case "firefox" -> playwright.firefox().launch();
+			case "webkit" -> playwright.webkit().launch();
+			default -> playwright.chromium().launch();
+		};
+		System.out.println("Motor de navegador do teste: " + navegador.browserType().name() + " " + navegador.version());
 	}
 
 	@BeforeEach
