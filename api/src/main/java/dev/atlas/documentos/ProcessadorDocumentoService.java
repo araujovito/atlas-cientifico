@@ -125,7 +125,7 @@ public class ProcessadorDocumentoService {
 				JOIN medida m ON m.experimento_id = x.id
 				LEFT JOIN evidencia e ON e.medida_id = m.id
 				WHERE s.versao_documento_id = :documento AND s.execucao_id = :execucao
-				ORDER BY m.id, e.pagina
+				ORDER BY m.registrada_em, m.id, e.pagina
 				""")
 			.param("documento", documentoId).param("execucao", execucaoId)
 			.query((rs, row) -> new MedidaComEvidencia(
