@@ -70,7 +70,7 @@
         <div><label for="metric">Métrica</label><input id="metric" required maxlength="300"></div>
       </div>
       <div class="row">
-        <div><label for="value">Valor original</label><input id="value" maxlength="300"></div>
+        <div><label for="value">Valor original</label><input id="value" maxlength="300" required></div>
         <div><label for="unit">Unidade original</label><input id="unit" maxlength="100"></div>
       </div>
       <div class="row">
@@ -80,12 +80,12 @@
           <option value="INFERIDO">Inferido</option>
           <option value="AUSENTE">Ausente no texto</option>
         </select></div>
-        <div id="page-field"><label for="evidence-page">Página da evidência</label><select id="evidence-page"></select></div>
+        <div id="page-field"><label for="evidence-page">Página da evidência</label><select id="evidence-page" required></select></div>
       </div>
       <label for="conditions">Condições experimentais (objeto JSON)</label>
       <textarea id="conditions">{}</textarea>
       <p class="muted">Exemplo: {"taxa_corrente":"190 mA/g","carga_catodo":"2.4 mg/cm²"}</p>
-      <div id="excerpt-field"><label for="excerpt">Trecho de evidência</label><textarea id="excerpt" maxlength="5000"></textarea></div>
+      <div id="excerpt-field"><label for="excerpt">Trecho de evidência</label><textarea id="excerpt" maxlength="5000" required></textarea></div>
       <button id="save-button" type="submit">Salvar medida</button>
     </form>
   </section>
@@ -127,7 +127,9 @@
   uploadForm.addEventListener('submit', async event => {
     event.preventDefault();
     const button = document.querySelector('#upload-button');
+    if (button.disabled) return;
     button.disabled = true;
+    resetDocument();
     showStatus('Enviando PDF e extraindo o texto…');
     try {
       const body = new FormData();
@@ -163,15 +165,26 @@
         ? 'O PDF foi recebido, mas ainda precisa de OCR para permitir a conferência de dados.'
         : `Texto extraído de ${pages.length} página(s).`);
     } catch (error) {
+      resetDocument();
       showStatus(error.message, true);
     } finally {
       button.disabled = false;
     }
   });
 
+  function resetDocument() {
+    documentId = undefined;
+    executionId = undefined;
+    pages = [];
+    for (const id of ['extraction', 'candidate', 'results']) document.getElementById(id).hidden = true;
+    for (const id of ['page-select', 'evidence-page', 'page-text', 'measure-list']) document.getElementById(id).replaceChildren();
+    document.querySelector('#measure-form').reset();
+    updateMeasureState();
+  }
+
   function showSelectedPage() {
     const page = pages.find(item => String(item.numero) === document.querySelector('#page-select').value);
-    renderPageText(page?.texto || '(Nenhum texto pesquisável nesta página.)');
+    renderPageText(page?.texto?.trim() ? page.texto : '(Nenhum texto pesquisável nesta página.)');
     document.querySelector('#evidence-page').value = page?.numero || '';
   }
 
@@ -201,8 +214,8 @@
     document.querySelector('#extraction').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
-  document.querySelector('#state').addEventListener('change', event => {
-    const absent = event.target.value === 'AUSENTE';
+  function updateMeasureState() {
+    const absent = document.querySelector('#state').value === 'AUSENTE';
     document.querySelector('#value').required = !absent;
     document.querySelector('#evidence-page').required = !absent;
     document.querySelector('#excerpt').required = !absent;
@@ -210,11 +223,13 @@
     document.querySelector('#excerpt-field').hidden = absent;
     document.querySelector('#value').disabled = absent;
     document.querySelector('#unit').disabled = absent;
-  });
+  }
+  document.querySelector('#state').addEventListener('change', updateMeasureState);
 
   document.querySelector('#measure-form').addEventListener('submit', async event => {
     event.preventDefault();
     const button = document.querySelector('#save-button');
+    if (button.disabled || document.querySelector('#upload-button').disabled || !documentId || !executionId) return;
     button.disabled = true;
     const state = document.querySelector('#state').value;
     let condicoes;
@@ -238,6 +253,7 @@
       trecho: state === 'AUSENTE' ? null : document.querySelector('#excerpt').value,
       condicoes
     };
+    document.querySelector('#upload-button').disabled = true;
     try {
       await request(`/api/documentos/${documentId}/extracoes/${executionId}/medidas`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
@@ -249,6 +265,7 @@
       showStatus(error.message, true);
     } finally {
       button.disabled = false;
+      document.querySelector('#upload-button').disabled = false;
     }
   });
 
