@@ -12,5 +12,7 @@ public record MedidaComEvidencia(
 		String estado,
 		JsonNode condicoes,
 		Integer pagina,
-		String trecho) {
+		String trecho,
+		Integer inicioCaractere,
+		Integer fimCaractere) {
 }

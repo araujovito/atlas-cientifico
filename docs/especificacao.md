@@ -104,7 +104,7 @@ Pontos de projeto:
 - `VERSAO_DOCUMENTO`: origem, versão (preprint, aceito, publicado), data de coleta, licença, SHA-256, chave do objeto no S3, direito de armazenamento.
 - `EXECUCAO_PROCESSAMENTO`: versão do processador, modelo, prompt e esquema; estado (`PENDENTE`, `EM_ANDAMENTO`, `PARCIAL`, `FALHOU`, `PRECISA_OCR`, `PRECISA_REVISAO`, `CONCLUIDO`); chave de idempotência (hash do documento + versão do processador).
 - `MEDIDA`: `valor_original` (texto), `unidade_original`, `valor_normalizado` e `unidade_normalizada` anuláveis, `incerteza`, `estado` (`REPORTADO`, `INFERIDO`, `AUSENTE`, `PENDENTE_REVISAO`). O valor original nunca é sobrescrito.
-- `EVIDENCIA`: página, trecho, posição; obrigatória para estado diferente de `AUSENTE`.
+- `EVIDENCIA`: página, trecho e posição em pontos de código Unicode (início inclusivo, fim exclusivo); obrigatória para estado diferente de `AUSENTE`. Evidências antigas podem ter posições nulas.
 - `REVISAO`: autor, valor anterior, valor novo, motivo, data. Correções acrescentam linhas; não alteram o histórico.
 - Campos do domínio de baterias (cátodo): material, taxa C, janela de tensão, eletrólito, temperatura, massa ativa, capacidade específica, retenção após N ciclos, eficiência coulômbica.
 

@@ -160,6 +160,12 @@ class ProcessamentoDocumentoTest {
 		assertThat(jdbc.sql("SELECT pagina || ':' || trecho FROM evidencia WHERE id=:id")
 				.param("id", UUID.fromString(registrada.get("evidenciaId").asText())).query(String.class).single())
 				.isEqualTo("1:Capacidade específica: 125 mAh/g");
+		assertThat(jdbc.sql("SELECT inicio_caractere FROM evidencia WHERE id=:id")
+				.param("id", UUID.fromString(registrada.get("evidenciaId").asText())).query(Integer.class).single())
+				.isEqualTo("Capacidade específica: 125 mAh/g".indexOf("Capacidade"));
+		assertThat(jdbc.sql("SELECT fim_caractere - inicio_caractere FROM evidencia WHERE id=:id")
+				.param("id", UUID.fromString(registrada.get("evidenciaId").asText())).query(Integer.class).single())
+				.isEqualTo("Capacidade específica: 125 mAh/g".codePointCount(0, "Capacidade específica: 125 mAh/g".length()));
 
 		mvc.perform(get("/api/documentos/{documentoId}/extracoes/{execucaoId}/medidas", documento, execucao))
 				.andExpect(status().isOk())
@@ -167,7 +173,9 @@ class ProcessamentoDocumentoTest {
 				.andExpect(jsonPath("$[0].unidadeOriginal").value("mAh/g"))
 				.andExpect(jsonPath("$[0].condicoes.taxa").value("0,1 C"))
 				.andExpect(jsonPath("$[0].pagina").value(1))
-				.andExpect(jsonPath("$[0].trecho").value("Capacidade específica: 125 mAh/g"));
+				.andExpect(jsonPath("$[0].trecho").value("Capacidade específica: 125 mAh/g"))
+				.andExpect(jsonPath("$[0].inicioCaractere").value("Capacidade específica: 125 mAh/g".indexOf("Capacidade")))
+				.andExpect(jsonPath("$[0].fimCaractere").value("Capacidade específica: 125 mAh/g".codePointCount(0, "Capacidade específica: 125 mAh/g".length())));
 	}
 
 	@Test

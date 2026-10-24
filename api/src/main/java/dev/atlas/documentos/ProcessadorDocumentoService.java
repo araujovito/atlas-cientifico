@@ -124,7 +124,8 @@ public class ProcessadorDocumentoService {
 
 		return jdbc.sql("""
 				SELECT m.id AS medida_id, x.objeto, m.metrica, m.valor_original,
-				       m.unidade_original, m.estado, x.condicoes::text AS condicoes, e.pagina, e.trecho
+			       m.unidade_original, m.estado, x.condicoes::text AS condicoes,
+			       e.pagina, e.trecho, e.inicio_caractere, e.fim_caractere
 				FROM estudo s
 				JOIN experimento x ON x.estudo_id = s.id
 				JOIN medida m ON m.experimento_id = x.id
@@ -137,7 +138,9 @@ public class ProcessadorDocumentoService {
 				rs.getObject("medida_id", UUID.class), rs.getString("objeto"), rs.getString("metrica"),
 				rs.getString("valor_original"), rs.getString("unidade_original"), rs.getString("estado"),
 				lerCondicoes(rs.getString("condicoes")),
-				(rs.getObject("pagina") == null ? null : rs.getInt("pagina")), rs.getString("trecho")))
+				(rs.getObject("pagina") == null ? null : rs.getInt("pagina")), rs.getString("trecho"),
+				(rs.getObject("inicio_caractere") == null ? null : rs.getInt("inicio_caractere")),
+				(rs.getObject("fim_caractere") == null ? null : rs.getInt("fim_caractere"))))
 			.list();
 	}
 
@@ -171,6 +174,8 @@ public class ProcessadorDocumentoService {
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Execução não encontrada para este documento."));
 
 		String trecho = medida.trecho();
+		Integer inicioCaractere = null;
+		Integer fimCaractere = null;
 		if (!ausente) {
 			if (medida.pagina() == null || medida.pagina() < 1 || vazio(trecho)) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe página e trecho literal da evidência.");
@@ -179,9 +184,13 @@ public class ProcessadorDocumentoService {
 				.param("execucao", execucaoId).param("pagina", medida.pagina())
 				.query(String.class).optional()
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "A página informada não existe nesta extração."));
-			if (!textoPagina.contains(trecho)) {
+			trecho = trecho.trim();
+			int inicioUtf16 = textoPagina.indexOf(trecho);
+			if (inicioUtf16 < 0) {
 				throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "O trecho informado não aparece literalmente na página.");
 			}
+			inicioCaractere = textoPagina.codePointCount(0, inicioUtf16);
+			fimCaractere = inicioCaractere + trecho.codePointCount(0, trecho.length());
 		}
 
 		// O no-op em DO UPDATE faz o RETURNING devolver o id também quando a linha já existe.
@@ -209,8 +218,9 @@ public class ProcessadorDocumentoService {
 			.param("estado", medida.estado()).query(UUID.class).single();
 		UUID evidenciaId = null;
 		if (!ausente) {
-			evidenciaId = jdbc.sql("INSERT INTO evidencia (medida_id, pagina, trecho) VALUES (:medida, :pagina, :trecho) RETURNING id")
-				.param("medida", medidaId).param("pagina", medida.pagina()).param("trecho", trecho.trim())
+			evidenciaId = jdbc.sql("INSERT INTO evidencia (medida_id, pagina, trecho, inicio_caractere, fim_caractere) VALUES (:medida, :pagina, :trecho, :inicio, :fim) RETURNING id")
+				.param("medida", medidaId).param("pagina", medida.pagina()).param("trecho", trecho)
+				.param("inicio", inicioCaractere).param("fim", fimCaractere)
 				.query(UUID.class).single();
 		}
 		return new MedidaRegistrada(estudoId, experimentoId, medidaId, evidenciaId, medida.estado());

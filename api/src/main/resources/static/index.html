@@ -24,6 +24,7 @@
     .error { color: #b42318; }
     .success { color: #067647; }
     pre { max-height: 260px; overflow: auto; white-space: pre-wrap; padding: 14px; background: #f5f7fa; border-radius: 7px; }
+    mark { background: #ffe08a; }
     article { padding: 14px 0; border-top: 1px solid #e4e9f0; }
     blockquote { margin: 8px 0; padding: 10px 14px; background: #f5f7fa; border-left: 3px solid #528bff; }
     [hidden] { display: none !important; }
@@ -155,8 +156,34 @@
 
   function showSelectedPage() {
     const page = pages.find(item => String(item.numero) === document.querySelector('#page-select').value);
-    document.querySelector('#page-text').textContent = page?.texto || '(Nenhum texto pesquisável nesta página.)';
+    renderPageText(page?.texto || '(Nenhum texto pesquisável nesta página.)');
     document.querySelector('#evidence-page').value = page?.numero || '';
+  }
+
+  function renderPageText(text, evidence = null) {
+    const output = document.querySelector('#page-text');
+    output.replaceChildren();
+    if (evidence && Number.isInteger(evidence.inicioCaractere) && Number.isInteger(evidence.fimCaractere)) {
+      const chars = Array.from(text);
+      const before = document.createTextNode(chars.slice(0, evidence.inicioCaractere).join(''));
+      const mark = document.createElement('mark');
+      mark.textContent = chars.slice(evidence.inicioCaractere, evidence.fimCaractere).join('');
+      const after = document.createTextNode(chars.slice(evidence.fimCaractere).join(''));
+      output.append(before, mark, after);
+      mark.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
+    output.textContent = text;
+  }
+
+  function showEvidence(measure) {
+    if (!measure.trecho) return;
+    const page = pages.find(item => item.numero === measure.pagina);
+    if (!page) return;
+    document.querySelector('#page-select').value = String(measure.pagina);
+    document.querySelector('#evidence-page').value = String(measure.pagina);
+    renderPageText(page.texto, measure);
+    document.querySelector('#extraction').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
   document.querySelector('#state').addEventListener('change', event => {
@@ -228,10 +255,14 @@
       }
       if (measure.trecho) {
         const page = document.createElement('p');
-        page.textContent = `Página ${measure.pagina}`;
+        page.textContent = `Página ${measure.pagina}${measure.inicioCaractere != null ? ` · caracteres ${measure.inicioCaractere}–${measure.fimCaractere}` : ''}`;
         const quote = document.createElement('blockquote');
         quote.textContent = measure.trecho;
-        article.append(page, quote);
+        const source = document.createElement('button');
+        source.type = 'button';
+        source.textContent = 'Ver no texto extraído';
+        source.addEventListener('click', () => showEvidence(measure));
+        article.append(page, quote, source);
       }
       list.append(article);
     });

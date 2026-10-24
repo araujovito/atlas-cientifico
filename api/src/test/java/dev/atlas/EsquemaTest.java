@@ -76,6 +76,24 @@ class EsquemaTest {
 	}
 
 	@Test
+	void evidenciaExigeAmbosOffsetsOuNenhum() {
+		UUID experimento = novaExperimento();
+		UUID medida = tx.execute(s -> {
+			UUID id = jdbc.sql("""
+					INSERT INTO medida (experimento_id, metrica, valor_original, estado)
+					VALUES (:e, 'capacidade', '160', 'REPORTADO') RETURNING id
+					""").param("e", experimento).query(UUID.class).single();
+			jdbc.sql("INSERT INTO evidencia (medida_id, pagina, trecho) VALUES (:m, 1, '160 mAh/g')")
+					.param("m", id).update();
+			return id;
+		});
+
+		assertThatThrownBy(() -> jdbc.sql("UPDATE evidencia SET inicio_caractere=0 WHERE medida_id=:m")
+				.param("m", medida).update())
+				.isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	@Test
 	void medidaAusenteNaoPrecisaDeEvidenciaMasNaoPodeTerValor() {
 		UUID experimento = novaExperimento();
 
