@@ -13,7 +13,6 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -30,7 +29,9 @@ public class UploadDocumentoService {
 		this.properties = properties;
 	}
 
-	@Transactional
+	// Sem @Transactional: a leitura do multipart, o hash e a cópia para o disco não usam o banco,
+	// e uma transação aberta nesse intervalo prenderia uma conexão do pool durante o I/O.
+	// O único comando que precisa ser atômico é o INSERT ... ON CONFLICT.
 	public DocumentoUpload receber(MultipartFile arquivo, boolean autorizacaoConfirmada, String titulo) {
 		if (!autorizacaoConfirmada) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Confirme que tem autorização para processar este PDF.");
