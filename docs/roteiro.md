@@ -27,5 +27,6 @@ Seguem a seção 9 da especificação: 2 descoberta e catálogo, 3 processamento
 
 ## Pendências transversais
 
+- Ler [a nota de passagem](handoff-codex.md) antes de continuar: ela lista as regras novas do código e as decisões que ainda são do autor.
 - Completar e revisar o conjunto de referência de artigos de baterias antes de avaliar extração automática no passo 6. O candidato inicial e suas limitações estão em `docs/conjunto-referencia.md`.
 - Confirmar limites de requisição e termos do Unpaywall e do Europe PMC antes da entrega 2.
