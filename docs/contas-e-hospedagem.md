@@ -152,6 +152,10 @@ O projeto não pode gastar com um servidor de e-mail, então **não há recupera
 
 Guardar PDFs de terceiros é uma coisa; devolvê-los a outras pessoas é outra. O autor respondeu que permite compartilhamento posteriormente. A Fase A não devolve originais nem os compartilha. Permissão de armazenar/processar não deve ser tratada automaticamente como permissão de redistribuir; o contrato de compartilhamento ainda não foi implementado.
 
-## O que continua sem medição
+## O que foi medido e o que não foi
 
-Memória dos contêineres sob carga, custo de hospedagem, desempenho das listagens com milhares de obras e o smoke Docker do healthcheck do worker.
+**Smoke do compose no CI (2026-10-24, runner do GitHub Actions, job `smoke`):** API, worker e PostgreSQL subiram com o JAR empacotado e passaram nas verificações: 8 envios simultâneos do mesmo PDF geraram um documento só, a tarefa ficou durável com o worker parado, foi concluída ao religar, e o healthcheck do worker deixou o `--wait` terminar. Memória dos contêineres naquele instante, com um PDF de teste pequeno: **API 246 MiB de 1 GiB, worker 193 MiB de 1 GiB, PostgreSQL 71 MiB de 512 MiB**. Mediana de envio ~182 ms; da retomada do worker até a conclusão, ~13 s.
+
+Isto **não** é carga realista: é um instante, um PDF sintético de menos de 1 KiB, sem várias contas nem PDFs grandes, e sem o pico do parser em subprocesso (o `-Xmx` do parser é à parte). Serve para dizer que o compose sobe e que os limites de 1 GiB não estão no limite com tráfego baixo.
+
+Continua sem medição: memória com PDFs de 20 MiB e várias extrações simultâneas, desempenho das listagens com milhares de obras, custo de hospedagem e tráfego real. Todos os limites e cotas deste documento são escolhas do revisor.
