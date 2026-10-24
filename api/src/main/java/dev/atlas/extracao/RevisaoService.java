@@ -19,15 +19,19 @@ public class RevisaoService {
     public record Evidencia(int pagina,String trecho,Integer inicioCaractere,Integer fimCaractere) {}
     public record Snapshot(MedidaCandidata medida,List<Evidencia> evidencias) {}
     public record Atual(UUID medidaId,UUID documentoId,UUID execucaoId,int versao,Snapshot original,Snapshot atual) {}
-    public record Pedido(@NotBlank @Size(max=100) String autorDeclarado,@NotBlank @Size(max=1000) String motivo,
-            @Min(0) int versaoEsperada,@NotNull @Valid MedidaCandidata corrigida) {}
-    public record Revisao(UUID id,int versao,String autorDeclarado,String motivo,Snapshot anterior,Snapshot correcao,Instant registradoEm) {}
+    public record Pedido(@NotBlank @Size(max=1000) String motivo,
+            @Min(0) int versaoEsperada,@NotNull @Valid MedidaCandidata corrigida) {
+        @com.fasterxml.jackson.annotation.JsonAnySetter
+        public void rejeitarCampo(String campo,Object valor){throw new IllegalArgumentException("Campo não aceito no pedido de revisão.");}
+    }
+    public record Revisao(UUID id,int versao,String autorDeclarado,String motivo,Snapshot anterior,Snapshot correcao,Instant registradoEm,UUID usuarioId) {}
     private final JdbcClient jdbc;
     private final TransactionTemplate tx;
     private final ProcessadorDocumentoService processador;
     private final ObjectMapper mapper;
-    public RevisaoService(JdbcClient jdbc,TransactionTemplate tx,ProcessadorDocumentoService processador,ObjectMapper mapper) {
-        this.jdbc=jdbc;this.tx=tx;this.processador=processador;this.mapper=mapper;
+    private final dev.atlas.acesso.UsuarioAtual usuario;
+    public RevisaoService(JdbcClient jdbc,TransactionTemplate tx,ProcessadorDocumentoService processador,ObjectMapper mapper,dev.atlas.acesso.UsuarioAtual usuario) {
+        this.jdbc=jdbc;this.tx=tx;this.processador=processador;this.mapper=mapper;this.usuario=usuario;
     }
 
     public Atual obter(UUID medida) {
@@ -48,8 +52,13 @@ public class RevisaoService {
     }
 
     public Atual revisar(UUID medida,Pedido pedido) {
+        var autor=usuario.obter();
         return tx.execute(s -> {
-            jdbc.sql("SELECT id FROM medida WHERE id=:id FOR UPDATE").param("id",medida).query(UUID.class).optional()
+            jdbc.sql("""
+                    SELECT m.id FROM medida m JOIN experimento x ON x.id=m.experimento_id
+                    JOIN estudo s ON s.id=x.estudo_id JOIN versao_documento d ON d.id=s.versao_documento_id
+                    WHERE m.id=:id AND d.dono_id=:u FOR UPDATE OF m
+                    """).param("id",medida).param("u",autor.id()).query(UUID.class).optional()
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Medida não encontrada."));
             var antes=obter(medida);
             if(antes.versao()!=pedido.versaoEsperada()) throw new ResponseStatusException(HttpStatus.CONFLICT,"A medida recebeu outra revisão. Recarregue antes de corrigir.");
@@ -58,9 +67,9 @@ public class RevisaoService {
             var correcao=new Snapshot(v.medida(),evidencias);
             jdbc.sql("""
                     INSERT INTO revisao_medida(medida_id,versao,autor_declarado,motivo,anterior,correcao,usuario_id)
-                    VALUES (:id,:v,:a,:m,CAST(:ant AS jsonb),CAST(:nova AS jsonb),(SELECT dono_id FROM versao_documento WHERE id=:doc))
-                    """).param("id",medida).param("v",antes.versao()+1).param("a",pedido.autorDeclarado().strip()).param("m",pedido.motivo().strip())
-                    .param("doc",antes.documentoId()).param("ant",mapper.writeValueAsString(antes.atual())).param("nova",mapper.writeValueAsString(correcao)).update();
+                    VALUES (:id,:v,:a,:m,CAST(:ant AS jsonb),CAST(:nova AS jsonb),:usuario)
+                    """).param("id",medida).param("v",antes.versao()+1).param("a",autor.id().toString()).param("m",pedido.motivo().strip())
+                    .param("usuario",autor.id()).param("ant",mapper.writeValueAsString(antes.atual())).param("nova",mapper.writeValueAsString(correcao)).update();
             return obter(medida);
         });
     }
@@ -71,6 +80,6 @@ public class RevisaoService {
     }
     private Revisao lerRevisao(java.sql.ResultSet rs,int row) throws java.sql.SQLException {
         return new Revisao(rs.getObject("id",UUID.class),rs.getInt("versao"),rs.getString("autor_declarado"),rs.getString("motivo"),
-                mapper.readValue(rs.getString("anterior"),Snapshot.class),mapper.readValue(rs.getString("correcao"),Snapshot.class),rs.getTimestamp("registrado_em").toInstant());
+                mapper.readValue(rs.getString("anterior"),Snapshot.class),mapper.readValue(rs.getString("correcao"),Snapshot.class),rs.getTimestamp("registrado_em").toInstant(),rs.getObject("usuario_id",UUID.class));
     }
 }

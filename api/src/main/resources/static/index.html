@@ -136,8 +136,7 @@
       <p class="muted">Exemplo: {"taxa_corrente":"190 mA/g","carga_catodo":"2.4 mg/cm²"}</p>
       <div id="excerpt-field"><label for="excerpt">Trecho de evidência</label><textarea id="excerpt" maxlength="5000" required></textarea></div>
       <div id="review-fields" hidden>
-        <p>Correção com histórico: o registro original permanece guardado. O nome abaixo é declarado pelo operador; a chave compartilhada não verifica sua identidade.</p>
-        <label for="review-author">Seu nome</label><input id="review-author" maxlength="100">
+        <p>Correção com histórico: o registro original permanece guardado. A autoria é registrada pelo servidor a partir da conta autenticada.</p>
         <label for="review-reason">Motivo da revisão</label><textarea id="review-reason" maxlength="1000"></textarea>
         <button id="cancel-review" type="button">Cancelar revisão</button>
       </div>
@@ -416,8 +415,8 @@
     try {
       const wasReview = Boolean(reviewing);
       const url = wasReview ? `/api/medidas/${reviewing.medidaId}/revisoes` : `/api/documentos/${documentId}/extracoes/${executionId}/medidas`;
-      const body = wasReview ? { autorDeclarado: document.querySelector('#review-author').value,
-        motivo: document.querySelector('#review-reason').value, versaoEsperada: reviewing.versao, corrigida: payload } : payload;
+      const body = wasReview ? { motivo: document.querySelector('#review-reason').value,
+        versaoEsperada: reviewing.versao, corrigida: payload } : payload;
       await request(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       cancelarRevisao();
       await loadMeasures();

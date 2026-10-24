@@ -68,7 +68,7 @@ class IsolamentoRecursosTest {
         for(var rota:PRIVADAS){
             String path=path(rota,f);
             if(rota.padrao().endsWith("/retentar")) jdbc.sql("UPDATE tarefa_extracao SET estado='FALHOU',finalizado_em=now() WHERE id=:id").param("id",f.tarefa()).update();
-            String body=rota.padrao().endsWith("/revisoes")?"{\"autorDeclarado\":\"Pessoa\",\"motivo\":\"Conferência\",\"versaoEsperada\":0,\"corrigida\":"+MEDIDA+"}":MEDIDA;
+            String body=rota.padrao().endsWith("/revisoes")?"{\"motivo\":\"Conferência\",\"versaoEsperada\":0,\"corrigida\":"+MEDIDA+"}":MEDIDA;
             mvc.perform(com(request(HttpMethod.valueOf(rota.metodo()),path),b).contentType("application/json").content(body))
                     .andExpect(status().isNotFound());
             mvc.perform(com(request(HttpMethod.valueOf(rota.metodo()),path),a).contentType("application/json").content(body))
@@ -109,6 +109,25 @@ class IsolamentoRecursosTest {
         rotas.getHandlerMethods().forEach((mapping,handler)->mapping.getPatternValues().stream().filter(p->p.startsWith("/api/") && p.contains("{"))
             .forEach(p->mapping.getMethodsCondition().getMethods().forEach(m->encontradas.add(m.name()+" "+p))));
         assertThat(encontradas).containsExactlyInAnyOrderElementsOf(esperado);
+    }
+    @Test void procedenciaVemDaContaENaoDeAutorOuUsuarioForjadoNoJson() throws Exception {
+        var f=fixture(a);String path="/api/medidas/"+f.medida()+"/revisoes";
+        String pedido="{\"motivo\":\"Conferido\",\"versaoEsperada\":0,\"corrigida\":"+MEDIDA+"}";
+        for(String campo:List.of("autorDeclarado","autor_declarado","usuario_id","usuarioId")) {
+            String forjado=pedido.substring(0,pedido.length()-1)+",\""+campo+"\":\""+b.id()+"\"}";
+            mvc.perform(com(post(path),a).contentType("application/json").content(forjado)).andExpect(status().isBadRequest());
+        }
+        mvc.perform(com(post(path),a).contentType("application/json").content(pedido)).andExpect(status().isOk());
+        mvc.perform(com(get(path),a)).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].usuarioId").value(a.id().toString()))
+                .andExpect(jsonPath("$[0].autorDeclarado").value(a.id().toString()));
+        for(String table:List.of("medida","revisao_medida"))
+            assertThat(jdbc.sql("SELECT usuario_id FROM "+table+" WHERE "+(table.equals("medida")?"id":"medida_id")+"=:m")
+                    .param("m",f.medida()).query(UUID.class).single()).isEqualTo(a.id());
+        assertThat(jdbc.sql("SELECT usuario_id FROM execucao_processamento WHERE id=:e").param("e",f.exec()).query(UUID.class).single()).isEqualTo(a.id());
+        String forjada=MEDIDA.substring(0,MEDIDA.length()-1)+",\"usuario_id\":\""+b.id()+"\"}";
+        mvc.perform(com(post("/api/documentos/"+f.doc()+"/extracoes/"+f.exec()+"/medidas"),a).contentType("application/json").content(forjada))
+                .andExpect(status().isBadRequest());
     }
     private String path(Rota r,Fixture f){
         UUID id=r.padrao().startsWith("/api/colecoes")?f.colecao():r.padrao().startsWith("/api/medidas")?f.medida():r.padrao().startsWith("/api/catalogo")?f.obra():f.tarefa();

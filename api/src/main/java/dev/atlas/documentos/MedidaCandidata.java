@@ -12,4 +12,6 @@ public record MedidaCandidata(
 		Integer pagina,
 		String trecho,
 		Map<String, Object> condicoes) {
+	@com.fasterxml.jackson.annotation.JsonAnySetter
+	public void rejeitarCampo(String campo,Object valor){throw new IllegalArgumentException("Campo não aceito na medida candidata.");}
 }

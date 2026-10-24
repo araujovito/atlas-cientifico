@@ -3,7 +3,6 @@ function selectionLabel() { document.querySelector('#comparison-selection').text
 function cancelarRevisao() {
   reviewing = undefined;
   document.querySelector('#review-fields').hidden = true;
-  document.querySelector('#review-author').required = false;
   document.querySelector('#review-reason').required = false;
   document.querySelector('#save-button').textContent = 'Salvar medida';
 }
@@ -31,12 +30,11 @@ function adicionarAcoesMedida(article, measure) {
       document.querySelector('#conditions').value = JSON.stringify(m.condicoes);
       document.querySelector('#evidence-page').value = m.pagina ?? '';
       document.querySelector('#review-fields').hidden = false;
-      document.querySelector('#review-author').required = true;
       document.querySelector('#review-reason').required = true;
       document.querySelector('#save-button').textContent = 'Salvar revisão';
       document.querySelector('#review-history').textContent = JSON.stringify({ original: current.original, revisoes: history }, null, 2);
       updateMeasureState();
-      showStatus(`Revisando a versão ${current.versao}. Complete o nome e o motivo antes de salvar.`);
+      showStatus(`Revisando a versão ${current.versao}. Complete o motivo antes de salvar. A autoria vem da sua conta.`);
       document.querySelector('#candidate').scrollIntoView({ block: 'start' });
     } catch (error) { showStatus(error.message, true); }
     finally { review.disabled = false; document.querySelector('#upload-button').disabled = false; document.querySelector('#save-button').disabled = false; }

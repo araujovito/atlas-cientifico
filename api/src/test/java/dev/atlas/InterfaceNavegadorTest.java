@@ -188,7 +188,7 @@ class InterfaceNavegadorTest {
 		assertThat(pagina.locator("#comparison-status")).containsText("Condições incompletas");
 		pagina.locator("#measure-list article").first().getByText("Ver atual / revisar").click();
 		assertThat(pagina.locator("#review-fields")).isVisible();
-		pagina.locator("#review-author").fill("Pessoa de teste"); pagina.locator("#review-reason").fill("Falta conferir o contexto.");
+		pagina.locator("#review-reason").fill("Falta conferir o contexto.");
 		pagina.locator("#state").selectOption("PENDENTE_REVISAO"); pagina.locator("#save-button").click();
 		assertThat(pagina.locator("#status")).hasText("Revisão registrada. O original foi preservado no histórico.");
 		assertThat(pagina.locator("#measure-list article").first()).containsText("REPORTADO");

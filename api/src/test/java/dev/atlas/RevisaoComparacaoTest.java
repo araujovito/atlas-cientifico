@@ -33,13 +33,13 @@ class RevisaoComparacaoTest {
         UUID medida=registrar("98.2","mAh/g",CONDICOES);
         var atual=revisoes.obter(medida);
         var correcao=new MedidaCandidata("NCM622","capacidade","99.3","mAh/g","REPORTADO",1,"Outro resultado 99.3 mAh/g.",CONDICOES);
-        var corrigida=revisoes.revisar(medida,new RevisaoService.Pedido("Pessoa revisora","Associação corrigida no parágrafo",0,correcao));
+        var corrigida=revisoes.revisar(medida,new RevisaoService.Pedido("Associação corrigida no parágrafo",0,correcao));
         assertThat(corrigida.versao()).isEqualTo(1);
         assertThat(corrigida.original().medida().valorOriginal()).isEqualTo("98.2");
         assertThat(corrigida.atual().medida().valorOriginal()).isEqualTo("99.3");
         assertThat(jdbc.sql("SELECT valor_original FROM medida WHERE id=:id").param("id",medida).query(String.class).single()).isEqualTo("98.2");
         assertThat(revisoes.historico(medida).getFirst().anterior()).isEqualTo(atual.atual());
-        assertThatThrownBy(() -> revisoes.revisar(medida,new RevisaoService.Pedido("Pessoa","Concorrente",0,correcao)))
+        assertThatThrownBy(() -> revisoes.revisar(medida,new RevisaoService.Pedido("Concorrente",0,correcao)))
                 .isInstanceOfSatisfying(ResponseStatusException.class,e -> assertThat(e.getStatusCode().value()).isEqualTo(409));
         assertThatThrownBy(() -> jdbc.sql("UPDATE revisao_medida SET motivo='apagado' WHERE medida_id=:id").param("id",medida).update()).isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(() -> jdbc.sql("DELETE FROM revisao_medida WHERE medida_id=:id").param("id",medida).update()).isInstanceOf(DataIntegrityViolationException.class);
@@ -48,7 +48,7 @@ class RevisaoComparacaoTest {
     @Test void revisaoTambemExigeValorPresenteEmEvidencia() {
         UUID medida=registrar("160","mAh/g",CONDICOES);
         var invalida=new MedidaCandidata("NCM622","capacidade","999","mAh/g","REPORTADO",1,"Outro resultado 99.3 mAh/g.",CONDICOES);
-        assertThatThrownBy(() -> revisoes.revisar(medida,new RevisaoService.Pedido("Pessoa","Revisão inválida",0,invalida)))
+        assertThatThrownBy(() -> revisoes.revisar(medida,new RevisaoService.Pedido("Revisão inválida",0,invalida)))
                 .isInstanceOfSatisfying(ResponseStatusException.class,e -> assertThat(e.getStatusCode().value()).isEqualTo(422));
         assertThat(revisoes.historico(medida)).isEmpty();
     }
@@ -69,7 +69,7 @@ class RevisaoComparacaoTest {
     @Test void comparacaoUsaRevisaoAtualESinalizaEstadoPendente() {
         UUID a=registrar("160","mAh/g",CONDICOES),b=registrar("161","mAh/g",CONDICOES);
         var valor=revisoes.obter(a).atual().medida();
-        revisoes.revisar(a,new RevisaoService.Pedido("Pessoa","Falta conferir associação",0,
+        revisoes.revisar(a,new RevisaoService.Pedido("Falta conferir associação",0,
                 new MedidaCandidata(valor.objeto(),valor.metrica(),valor.valorOriginal(),valor.unidadeOriginal(),"PENDENTE_REVISAO",valor.pagina(),valor.trecho(),valor.condicoes())));
         var resultado=comparacoes.comparar(List.of(a,b));
         assertThat(resultado.podeAlinharNumericamente()).isFalse();
@@ -79,9 +79,9 @@ class RevisaoComparacaoTest {
     @Test void segundaRevisaoEncadeiaComAPrimeiraEPreservaOffsets() {
         UUID medida=registrar("98.2","mAh/g",CONDICOES);
         var v1=new MedidaCandidata("NCM622","capacidade","99.3","mAh/g","REPORTADO",1,"Outro resultado 99.3 mAh/g.",CONDICOES);
-        var primeira=revisoes.revisar(medida,new RevisaoService.Pedido("Pessoa","Primeira",0,v1));
+        var primeira=revisoes.revisar(medida,new RevisaoService.Pedido("Primeira",0,v1));
         var v2=new MedidaCandidata("NCM622","capacidade","98.2","mAh/g","REPORTADO",1,"Capacidade 98.2 mAh/g.",CONDICOES);
-        var segunda=revisoes.revisar(medida,new RevisaoService.Pedido("Outra pessoa","Voltou ao original",1,v2));
+        var segunda=revisoes.revisar(medida,new RevisaoService.Pedido("Voltou ao original",1,v2));
         assertThat(segunda.versao()).isEqualTo(2);
         var historico=revisoes.historico(medida);
         assertThat(historico).extracting(RevisaoService.Revisao::versao).containsExactly(1,2);
@@ -95,7 +95,7 @@ class RevisaoComparacaoTest {
     @Test void correcaoParaAusenteNaoCarregaEvidencia() {
         UUID medida=registrar("98.2","mAh/g",CONDICOES);
         var ausente=new MedidaCandidata("NCM622","capacidade",null,null,"AUSENTE",null,null,CONDICOES);
-        var resultado=revisoes.revisar(medida,new RevisaoService.Pedido("Pessoa","Valor não consta no artigo",0,ausente));
+        var resultado=revisoes.revisar(medida,new RevisaoService.Pedido("Valor não consta no artigo",0,ausente));
         assertThat(resultado.atual().evidencias()).isEmpty();
         assertThat(resultado.atual().medida().estado()).isEqualTo("AUSENTE");
         assertThat(resultado.original().evidencias()).isNotEmpty();
@@ -103,7 +103,7 @@ class RevisaoComparacaoTest {
 
     @Test void medidaInexistenteDevolve404() {
         var qualquer=new MedidaCandidata("NCM622","capacidade","1","mAh/g","REPORTADO",1,"Capacidade 1 mAh/g.",CONDICOES);
-        assertThatThrownBy(() -> revisoes.revisar(UUID.randomUUID(),new RevisaoService.Pedido("Pessoa","Inexistente",0,qualquer)))
+        assertThatThrownBy(() -> revisoes.revisar(UUID.randomUUID(),new RevisaoService.Pedido("Inexistente",0,qualquer)))
                 .isInstanceOfSatisfying(ResponseStatusException.class,e -> assertThat(e.getStatusCode().value()).isEqualTo(404));
         assertThatThrownBy(() -> revisoes.obter(UUID.randomUUID())).isInstanceOf(ResponseStatusException.class);
     }
@@ -115,7 +115,7 @@ class RevisaoComparacaoTest {
         try(var pool=java.util.concurrent.Executors.newFixedThreadPool(2)) {
             var tarefas=List.of("A","B").stream().map(autor -> pool.submit(() -> {
                 inicio.await();
-                try { revisoes.revisar(medida,new RevisaoService.Pedido(autor,"Concorrente",0,correcao)); return 200; }
+                try { revisoes.revisar(medida,new RevisaoService.Pedido("Concorrente",0,correcao)); return 200; }
                 catch(ResponseStatusException e) { return e.getStatusCode().value(); }
             })).toList();
             inicio.countDown();
