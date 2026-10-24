@@ -57,4 +57,27 @@ if ATLAS_RESTAURAR_BANCO=atlas_adulterado ATLAS_RESTAURAR_DOCUMENTOS="$trabalho/
 # Recusa sobrescrever o banco de produção e pasta com conteúdo.
 if ATLAS_RESTAURAR_BANCO=atlas ATLAS_RESTAURAR_DOCUMENTOS="$trabalho/vazia2" ./restaurar.sh "$copia" >/dev/null 2>&1; then falhar "aceitou restaurar sobre 'atlas'"; fi
 if ATLAS_RESTAURAR_BANCO=atlas_outro ATLAS_RESTAURAR_DOCUMENTOS="$trabalho/documentos" ./restaurar.sh "$copia" >/dev/null 2>&1; then falhar "aceitou pasta de documentos com conteúdo"; fi
-echo "OK: cópia, retenção, restauração e recusas verificadas."
+
+# Cópia cifrada: nada em claro no disco, restauração com a chave privada, recusa sem ela.
+export GNUPGHOME="$trabalho/gnupg"; mkdir -m 700 "$GNUPGHOME"
+gpg --batch --quiet --passphrase '' --quick-generate-key "backup-teste@atlas.invalid" default default never 2>/dev/null
+ATLAS_BACKUP_DIR="$trabalho/cifradas" ATLAS_BACKUP_GPG_DESTINATARIO="backup-teste@atlas.invalid" ./backup.sh >/dev/null
+cifrada="$(find "$trabalho/cifradas" -mindepth 1 -maxdepth 1 -type d | head -1)"
+[[ -f "$cifrada/banco.dump.gpg" && -f "$cifrada/documentos.tar.gpg" ]] || falhar "arquivos cifrados ausentes"
+[[ ! -e "$cifrada/banco.dump" && ! -e "$cifrada/documentos.tar" ]] || falhar "versão em claro ficou no disco"
+if grep -aq 'PGDMP' "$cifrada/banco.dump.gpg" || grep -aq "$hash" "$cifrada/documentos.tar.gpg"; then falhar "conteúdo legível na cópia cifrada"; fi
+ATLAS_RESTAURAR_BANCO=atlas_cifrado ATLAS_RESTAURAR_DOCUMENTOS="$trabalho/documentos-cifrados" ./restaurar.sh "$cifrada" >/dev/null
+[[ "$(val 'SELECT count(*) FROM versao_documento' atlas_cifrado)" == "1" ]] || falhar "documento da cópia cifrada não restaurado"
+[[ "$(sha256sum "$trabalho/documentos-cifrados/$hash.pdf" | cut -d' ' -f1)" == "$hash" ]] || falhar "arquivo da cópia cifrada difere"
+# Sem a chave privada (keyring vazio) a restauração recusa e não cria banco.
+mkdir -m 700 "$trabalho/gnupg-vazio"
+if GNUPGHOME="$trabalho/gnupg-vazio" ATLAS_RESTAURAR_BANCO=atlas_sem_chave ATLAS_RESTAURAR_DOCUMENTOS="$trabalho/sem-chave" ./restaurar.sh "$cifrada" >/dev/null 2>&1; then falhar "restaurou sem a chave privada"; fi
+[[ "$(val "SELECT count(*) FROM pg_database WHERE datname='atlas_sem_chave'")" == "0" ]] || falhar "criou banco sem a chave"
+
+# Unidades do systemd: sintaxe e caminhos, com o diretório do repositório no lugar de /opt/atlas.
+if command -v systemd-analyze >/dev/null; then
+  mkdir "$trabalho/unidades"
+  for unidade in atlas-backup.service atlas-backup.timer; do sed "s#/opt/atlas#$(cd .. && pwd)#g" "systemd/$unidade" > "$trabalho/unidades/$unidade"; done
+  systemd-analyze verify "$trabalho/unidades/atlas-backup.service" "$trabalho/unidades/atlas-backup.timer" 2>&1 | grep -v "^$" | grep -iE "error|fail|invalid|unknown" && falhar "unidades systemd inválidas" || true
+fi
+echo "OK: cópia, retenção, restauração, cifra e recusas verificadas."

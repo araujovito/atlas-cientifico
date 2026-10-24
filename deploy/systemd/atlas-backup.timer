@@ -1,0 +1,11 @@
+[Unit]
+Description=Agenda a cópia de segurança diária do Atlas
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=15min
+# Se o servidor estava desligado no horário, roda assim que ligar.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=Cópia de segurança do Atlas (banco e documentos)
+Wants=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+# /etc/atlas/backup.env define ATLAS_BACKUP_DIR e, opcionalmente, ATLAS_BACKUP_MANTER e
+# ATLAS_BACKUP_GPG_DESTINATARIO. O arquivo guarda caminhos e o nome de uma chave pública, não segredos.
+EnvironmentFile=/etc/atlas/backup.env
+WorkingDirectory=/opt/atlas
+ExecStart=/opt/atlas/deploy/backup.sh
+# Uma cópia presa não pode segurar a próxima indefinidamente.
+TimeoutStartSec=2h
+Nice=10
+IOSchedulingClass=idle
