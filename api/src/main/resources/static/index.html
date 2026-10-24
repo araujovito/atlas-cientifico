@@ -135,13 +135,27 @@
       <textarea id="conditions">{}</textarea>
       <p class="muted">Exemplo: {"taxa_corrente":"190 mA/g","carga_catodo":"2.4 mg/cm²"}</p>
       <div id="excerpt-field"><label for="excerpt">Trecho de evidência</label><textarea id="excerpt" maxlength="5000" required></textarea></div>
+      <div id="review-fields" hidden>
+        <p>Correção com histórico: o registro original permanece guardado. O nome abaixo é declarado pelo operador; a chave compartilhada não verifica sua identidade.</p>
+        <label for="review-author">Seu nome</label><input id="review-author" maxlength="100">
+        <label for="review-reason">Motivo da revisão</label><textarea id="review-reason" maxlength="1000"></textarea>
+        <button id="cancel-review" type="button">Cancelar revisão</button>
+      </div>
       <button id="save-button" type="submit">Salvar medida</button>
     </form>
   </section>
 
   <section id="results" hidden>
-    <h2>Medidas registradas</h2>
+    <h2>Medidas originais e revisões</h2>
     <div id="measure-list"></div>
+  </section>
+  <section>
+    <h2>Comparar medidas</h2>
+    <p id="comparison-selection">Nenhuma medida selecionada.</p>
+    <button id="compare-measures" type="button">Comparar selecionadas</button><button id="clear-comparison" type="button">Limpar seleção</button>
+    <p id="comparison-status" role="status" aria-live="polite"></p><div id="comparison-result"></div>
+    <p class="muted">O alinhamento verifica campos declarados. Não confirma equivalência científica, qualidade do estudo nem contradição entre resultados.</p>
+    <details><summary>Histórico da medida em revisão</summary><pre id="review-history"></pre></details>
   </section>
 </main>
 <script>
@@ -152,6 +166,7 @@
   let pages = [];
   let workToSave;
   let activeWorkId;
+  let reviewing;
 
   function showStatus(message, error = false) {
     statusBox.textContent = message;
@@ -295,6 +310,7 @@
     for (const id of ['extraction', 'candidate', 'results']) document.getElementById(id).hidden = true;
     for (const id of ['page-select', 'evidence-page', 'page-text', 'measure-list']) document.getElementById(id).replaceChildren();
     document.querySelector('#measure-form').reset();
+    cancelarRevisao();
     updateMeasureState();
   }
 
@@ -371,11 +387,14 @@
     };
     document.querySelector('#upload-button').disabled = true;
     try {
-      await request(`/api/documentos/${documentId}/extracoes/${executionId}/medidas`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-      });
+      const wasReview = Boolean(reviewing);
+      const url = wasReview ? `/api/medidas/${reviewing.medidaId}/revisoes` : `/api/documentos/${documentId}/extracoes/${executionId}/medidas`;
+      const body = wasReview ? { autorDeclarado: document.querySelector('#review-author').value,
+        motivo: document.querySelector('#review-reason').value, versaoEsperada: reviewing.versao, corrigida: payload } : payload;
+      await request(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      cancelarRevisao();
       await loadMeasures();
-      showStatus('Medida registrada. Confira a página e o trecho exibidos abaixo.');
+      showStatus(wasReview ? 'Revisão registrada. O original foi preservado no histórico.' : 'Medida registrada. Confira a página e o trecho exibidos abaixo.');
       document.querySelector('#excerpt').value = '';
     } catch (error) {
       showStatus(error.message, true);
@@ -396,6 +415,7 @@
       const value = document.createElement('p');
       value.textContent = measure.estado === 'AUSENTE' ? 'Informação ausente no texto' : `${measure.valorOriginal}${measure.unidadeOriginal ? ` ${measure.unidadeOriginal}` : ''} · ${measure.estado}`;
       article.append(heading, value);
+      adicionarAcoesMedida(article, measure);
       if (measure.condicoes && Object.keys(measure.condicoes).length > 0) {
         const conditions = document.createElement('p');
         conditions.textContent = `Condições: ${JSON.stringify(measure.condicoes)}`;
@@ -418,5 +438,6 @@
   }
 </script>
 <script src="/catalogo.js"></script>
+<script src="/revisao.js"></script>
 </body>
 </html>

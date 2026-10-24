@@ -170,6 +170,31 @@ class InterfaceNavegadorTest {
 	}
 
 	@Test
+	void comparaMedidasERevisaSemApagarOriginal() throws Exception {
+		enviarPdf("Capacidade 160 mAh/g. Segundo valor 161 mAh/g.");
+		assertThat(pagina.locator("#candidate")).isVisible();
+		for (String valor : java.util.List.of("160","161")) {
+			pagina.locator("#object").fill("NCM622"); pagina.locator("#metric").fill("capacidade");
+			pagina.locator("#value").fill(valor); pagina.locator("#unit").fill("mAh/g"); pagina.locator("#excerpt").fill(valor+" mAh/g");
+			pagina.locator("#save-button").click();
+			assertThat(pagina.locator("#measure-list article")).hasCount(valor.equals("160")?1:2);
+		}
+		pagina.locator("#measure-list input[type=checkbox]").nth(0).check();
+		pagina.locator("#measure-list input[type=checkbox]").nth(1).check();
+		pagina.locator("#compare-measures").click();
+		assertThat(pagina.locator("#comparison-result tr")).hasCount(3);
+		assertThat(pagina.locator("#comparison-status")).containsText("Condições incompletas");
+		pagina.locator("#measure-list article").first().getByText("Ver atual / revisar").click();
+		assertThat(pagina.locator("#review-fields")).isVisible();
+		pagina.locator("#review-author").fill("Pessoa de teste"); pagina.locator("#review-reason").fill("Falta conferir o contexto.");
+		pagina.locator("#state").selectOption("PENDENTE_REVISAO"); pagina.locator("#save-button").click();
+		assertThat(pagina.locator("#status")).hasText("Revisão registrada. O original foi preservado no histórico.");
+		assertThat(pagina.locator("#measure-list article").first()).containsText("REPORTADO");
+		pagina.locator("#compare-measures").click();
+		assertThat(pagina.locator("#comparison-result")).containsText("PENDENTE_REVISAO / v1");
+	}
+
+	@Test
 	void buscaDoiMostraTextoExternoSemHtmlELimpaResultadoAoFalhar() {
 		org.mockito.Mockito.when(fonte.buscarPorDoi("10.1234/artigo")).thenReturn(new ObraEncontrada(
 				"OPENALEX","https://openalex.org/W123","10.1234/artigo","Título conferido no servidor",2022,java.util.List.of("Uma autora")));
