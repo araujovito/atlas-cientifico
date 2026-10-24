@@ -26,8 +26,8 @@ class EsquemaTest {
 					.query(UUID.class).single();
 			UUID versao = jdbc.sql("""
 					INSERT INTO versao_documento (obra_id, origem, sha256, tamanho_bytes,
-					                              chave_armazenamento, autorizacao_declarada)
-					VALUES (:o, 'UPLOAD', :h, 10, 'k', true) RETURNING id
+					                              chave_armazenamento, autorizacao_declarada, autorizacao_confirmada_em)
+					VALUES (:o, 'UPLOAD', :h, 10, 'k', true, now()) RETURNING id
 					""").param("o", obra).param("h", hashAleatorio()).query(UUID.class).single();
 			UUID exec = jdbc.sql("""
 					INSERT INTO execucao_processamento (versao_documento_id, versao_processador,
@@ -73,6 +73,57 @@ class EsquemaTest {
 
 		assertThat(jdbc.sql("SELECT count(*) FROM medida WHERE experimento_id = :e")
 				.param("e", experimento).query(Long.class).single()).isEqualTo(1);
+	}
+
+	@Test
+	void apagarAUnicaEvidenciaDeMedidaReportadaNaoFazCommit() {
+		UUID experimento = novaExperimento();
+		UUID medida = tx.execute(s -> {
+			UUID id = jdbc.sql("""
+					INSERT INTO medida (experimento_id, metrica, valor_original, estado)
+					VALUES (:e, 'capacidade', '160', 'REPORTADO') RETURNING id
+					""").param("e", experimento).query(UUID.class).single();
+			jdbc.sql("INSERT INTO evidencia (medida_id, pagina, trecho) VALUES (:m, 1, '160 mAh/g')")
+					.param("m", id).update();
+			return id;
+		});
+
+		assertThatThrownBy(() -> tx.executeWithoutResult(s -> jdbc.sql("DELETE FROM evidencia WHERE medida_id = :m")
+				.param("m", medida).update()))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThat(jdbc.sql("SELECT count(*) FROM evidencia WHERE medida_id = :m")
+				.param("m", medida).query(Long.class).single()).isEqualTo(1);
+	}
+
+	@Test
+	void apagarAMedidaApagaASuaEvidenciaSemViolarOGatilho() {
+		UUID experimento = novaExperimento();
+		UUID medida = tx.execute(s -> {
+			UUID id = jdbc.sql("""
+					INSERT INTO medida (experimento_id, metrica, valor_original, estado)
+					VALUES (:e, 'capacidade', '160', 'REPORTADO') RETURNING id
+					""").param("e", experimento).query(UUID.class).single();
+			jdbc.sql("INSERT INTO evidencia (medida_id, pagina, trecho) VALUES (:m, 1, '160 mAh/g')")
+					.param("m", id).update();
+			return id;
+		});
+
+		tx.executeWithoutResult(s -> jdbc.sql("DELETE FROM medida WHERE id = :m").param("m", medida).update());
+
+		assertThat(jdbc.sql("SELECT count(*) FROM evidencia WHERE medida_id = :m")
+				.param("m", medida).query(Long.class).single()).isZero();
+	}
+
+	@Test
+	void uploadSemConfirmacaoNaoEntraMesmoComObra() {
+		UUID obra = jdbc.sql("INSERT INTO obra (titulo) VALUES ('Com obra') RETURNING id").query(UUID.class).single();
+
+		assertThatThrownBy(() -> jdbc.sql("""
+				INSERT INTO versao_documento (obra_id, origem, sha256, tamanho_bytes,
+				                              chave_armazenamento, autorizacao_declarada)
+				VALUES (:o, 'UPLOAD', :h, 10, 'k', true)
+				""").param("o", obra).param("h", hashAleatorio()).update())
+				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	@Test
@@ -125,8 +176,8 @@ class EsquemaTest {
 		UUID obra = jdbc.sql("INSERT INTO obra (titulo) VALUES ('Outro') RETURNING id").query(UUID.class).single();
 		String insert = """
 				INSERT INTO versao_documento (obra_id, origem, sha256, tamanho_bytes,
-				                              chave_armazenamento, autorizacao_declarada)
-				VALUES (:o, 'UPLOAD', :h, 10, 'k', true)
+				                              chave_armazenamento, autorizacao_declarada, autorizacao_confirmada_em)
+				VALUES (:o, 'UPLOAD', :h, 10, 'k', true, now())
 				""";
 		jdbc.sql(insert).param("o", obra).param("h", hash).update();
 
@@ -141,8 +192,8 @@ class EsquemaTest {
 
 		assertThatThrownBy(() -> jdbc.sql("""
 				INSERT INTO versao_documento (obra_id, origem, sha256, tamanho_bytes,
-				                              chave_armazenamento, autorizacao_declarada)
-				VALUES (:o, 'UPLOAD', :h, 10, 'k', false)
+				                              chave_armazenamento, autorizacao_declarada, autorizacao_confirmada_em)
+				VALUES (:o, 'UPLOAD', :h, 10, 'k', false, now())
 				""").param("o", obra).param("h", hashAleatorio()).update())
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
