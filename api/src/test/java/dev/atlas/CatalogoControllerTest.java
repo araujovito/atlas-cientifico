@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class CatalogoControllerTest {
 	@Autowired MockMvc mvc;
 	@MockitoBean OpenAlexClient openAlex;
+	@MockitoBean dev.atlas.catalogo.CatalogoService catalogo;
 
 	@Test
 	void consultaDoiRetornaMetadadosComFonteEIdentificadores() throws Exception {
