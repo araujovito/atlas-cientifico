@@ -17,7 +17,15 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class FiltroSessao extends OncePerRequestFilter {
     static final String ATRIBUTO=FiltroSessao.class.getName();
     private final SessaoService sessoes;
-    public FiltroSessao(SessaoService sessoes){this.sessoes=sessoes;}
+    private final Set<String> origensExtras;
+    public FiltroSessao(SessaoService sessoes,
+            @org.springframework.beans.factory.annotation.Value("${atlas.seguranca.origens-permitidas:}") String origensPermitidas){
+        this.sessoes=sessoes;
+        // Atrás de proxy TLS o Tomcat vê http://host:8080 e o navegador envia Origin https://dominio: sem esta lista
+        // todo POST, inclusive o login, seria recusado. Só origens completas, escolhidas pelo operador.
+        this.origensExtras=Arrays.stream(origensPermitidas.split(",")).map(String::strip).filter(o->!o.isEmpty())
+                .map(o->o.replaceAll("/+$","").toLowerCase(java.util.Locale.ROOT)).collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
     @Override protected boolean shouldNotFilter(HttpServletRequest request){return !FiltroChaveApi.normalizar(request.getRequestURI()).startsWith("/api/");}
     @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain) throws IOException,ServletException {
         String path=FiltroChaveApi.normalizar(request.getRequestURI());
@@ -28,15 +36,16 @@ public class FiltroSessao extends OncePerRequestFilter {
         boolean entrada=path.equals("/api/auth/login") || path.equals("/api/auth/cadastro");
         if(sessao==null || (!entrada && sessao.usuario()==null)){erro(response,401,"Entre na sua conta.");return;}
         if(!Set.of("GET","HEAD","OPTIONS").contains(request.getMethod())){
-            if(!origemPermitida(request) || !SessaoService.igual(sessao.csrf(),request.getHeader("X-Atlas-CSRF"))){erro(response,403,"Validação CSRF recusada.");return;}
+            if(!origemPermitida(request,origensExtras) || !SessaoService.igual(sessao.csrf(),request.getHeader("X-Atlas-CSRF"))){erro(response,403,"Validação CSRF recusada.");return;}
         }
         request.setAttribute(ATRIBUTO,sessao);
         if(sessao.usuario()!=null) request.setAttribute(UsuarioAtual.ATRIBUTO,sessao.usuario());
         chain.doFilter(request,response);
     }
-    private static boolean origemPermitida(HttpServletRequest r){
+    static boolean origemPermitida(HttpServletRequest r,Set<String> extras){
         if("cross-site".equals(r.getHeader("Sec-Fetch-Site"))) return false;
         String origin=r.getHeader("Origin"); if(origin==null) return true;
+        if(extras.contains(origin.strip().replaceAll("/+$","").toLowerCase(java.util.Locale.ROOT))) return true;
         try{
             var u=URI.create(origin); int port=u.getPort()<0?("https".equals(u.getScheme())?443:80):u.getPort();
             return u.getUserInfo()==null && u.getRawQuery()==null && u.getRawFragment()==null
