@@ -39,6 +39,12 @@ public class FilaExtracaoWorker {
         }
         catch(ResponseStatusException e) {
             int status=e.getStatusCode().value();
+            if(status==503) {
+                // Parsers ocupados (ou desligamento): a tarefa nem começou, então não gasta tentativa.
+                resultado="adiada";
+                fila.devolver(reserva);
+                return true;
+            }
             boolean permanente=status>=400 && status<500 && status!=429;
             resultado=permanente ? "erro_permanente" : "erro_temporario";
             fila.falhar(reserva,e.getReason()==null?"Falha no processamento.":e.getReason(),permanente);

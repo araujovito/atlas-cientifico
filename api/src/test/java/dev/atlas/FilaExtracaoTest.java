@@ -54,6 +54,15 @@ class FilaExtracaoTest {
         }
     }
 
+    @Test void tarefaDevolvidaPorFaltaDeProcessadorNaoGastaTentativa() {
+        var tarefa=fila.agendar(documento()); var reserva=fila.reservar().orElseThrow();
+        assertThat(reserva.tarefa().tentativas()).isEqualTo(1);
+        assertThat(fila.devolver(reserva)).isTrue();
+        var depois=fila.obter(tarefa.id());
+        assertThat(depois.estado()).isEqualTo("PENDENTE"); assertThat(depois.tentativas()).isZero();
+        assertThat(fila.devolver(reserva)).as("token já liberado").isFalse();
+    }
+
     @Test void reservaExpiradaPodeSerRetomadaMasTokenAntigoNaoConfirma() {
         UUID doc=documento(); var tarefa=fila.agendar(doc); var antiga=fila.reservar().orElseThrow();
         expirar(tarefa.id()); var nova=fila.reservar().orElseThrow();

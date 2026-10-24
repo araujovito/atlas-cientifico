@@ -102,6 +102,19 @@ public class FilaExtracaoService {
         });
     }
 
+    /** Devolve à fila sem contar a tentativa: o processamento não chegou a rodar. */
+    public boolean devolver(Reserva reserva) {
+        return tx.execute(s -> {
+            int n=jdbc.sql("""
+                    UPDATE tarefa_extracao SET estado='PENDENTE',tentativas=tentativas-1,token=NULL,reservado_ate=NULL,
+                        disponivel_em=now()+make_interval(secs=>5)
+                    WHERE id=:id AND token=:token AND estado='EM_ANDAMENTO' AND tentativas>0
+                    """).param("id",reserva.tarefa().id()).param("token",reserva.token()).update();
+            if(n==1) evento(reserva.tarefa().id(),"PENDENTE","Processadores ocupados; tentativa devolvida.");
+            return n==1;
+        });
+    }
+
     public Tarefa retentar(UUID id) {
         return tx.execute(s -> {
             obter(id);
