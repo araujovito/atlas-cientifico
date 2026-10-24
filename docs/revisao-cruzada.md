@@ -26,9 +26,9 @@ Registro das revisões feitas por um segundo agente sobre o código escrito pelo
 
 Sem defeito bloqueante. Pontos a conhecer:
 
-- `indexOf` devolve só a **primeira** ocorrência do trecho na página. Se o mesmo trecho aparece duas vezes (por exemplo "3,4 V"), o destaque e os offsets podem apontar para o lugar errado, e a evidência mostrada nem sempre é a que a pessoa viu. O README descreve o trecho como literal, mas não diz que a posição é a primeira ocorrência.
+- (Corrigido em `dd65493`: trecho repetido agora responde 409.) `indexOf` devolve só a **primeira** ocorrência do trecho na página. Se o mesmo trecho aparece duas vezes (por exemplo "3,4 V"), o destaque e os offsets podem apontar para o lugar errado, e a evidência mostrada nem sempre é a que a pessoa viu. O README descreve o trecho como literal, mas não diz que a posição é a primeira ocorrência.
 - O trecho precisa ser literal, então um trecho que atravessa uma quebra de linha do PDF é recusado, mesmo estando no documento.
-- Os offsets contam pontos de código Unicode e a tela usa `Array.from`, que também conta assim. As duas pontas combinam; vale manter um teste com emoji ou caractere fora do plano básico.
+- Os offsets contam pontos de código Unicode e a tela usa `Array.from`, que também conta assim. As duas pontas combinam; o teste com emoji entrou depois.
 - Evidências anteriores à V6 ficam com offsets nulos, o que está documentado.
 
 ## 2026-10-24 (continuação)
@@ -37,8 +37,46 @@ Sem defeito bloqueante. Pontos a conhecer:
 - Chave de armazenamento relativa: novos uploads guardam só `<sha256>.pdf`, resolvido contra `ATLAS_DOCUMENTOS_DIR`. Linhas antigas com caminho absoluto continuam funcionando (`Path.resolve` mantém caminho absoluto), então não houve migração. Essas linhas antigas ainda quebram se o diretório mudar; só as novas ficam protegidas.
 - Observação na tela: o `change` do seletor de página ganha um listener novo a cada envio de PDF, sem remover o anterior. É inofensivo, mas acumula.
 
+## 2026-10-24 (revisão por quatro agentes)
+
+Quatro revisores independentes leram o projeto cada um por uma lente (segurança, escala, dados e arquitetura, testes e operação), só com leitura. Cada achado foi conferido no código antes de virar mudança. O que cada revisor afirmou sem rodar nada está marcado como estimativa.
+
+### Corrigido
+
+| Achado | Commit |
+|---|---|
+| Faltavam índices nas chaves estrangeiras usadas em filtros e nas cascatas. Preventivo; nada foi medido. | `834b144` |
+| Apagar a evidência deixava uma medida REPORTADO sem origem (o gatilho só olhava inserção da medida). | `38a157b` |
+| `CHECK` do V2 aceitava upload sem confirmação se houvesse obra. | `38a157b` |
+| Evidência não precisava conter o valor: valor 250 com o trecho "Introduction" era aceito como REPORTADO. | `dd65493` |
+| Trecho repetido na página: a posição apontava para a primeira ocorrência sem aviso. Agora responde 409. | `dd65493` |
+| Campos e condições de uma medida sem limite de tamanho. | `85533f9` |
+| Mensagens de erro escritas no código não chegavam ao cliente (padrão do Spring esconde). Não coberto por teste: o MockMvc não segue para `/error`. | `85533f9` |
+| Upload segurava uma conexão do pool durante o hash e a cópia do arquivo. Estimado, não medido. | `e86ce4a` |
+| Sem limite de páginas; PDF com senha dava o mesmo 422 genérico; falhas sem log. O limite não impede um PDF lento, só um grande. | `01e5db6` |
+| CI: actions por tag móvel, sem timeout, sem concurrency, sem relatório na falha, sem Dependabot. | `3f8e589` |
+| A API só subia com Testcontainers, sem datasource nem compose; Actuator sem exposição explícita. | `95f2213` |
+| README não dizia como rodar, nem os limites de segurança. | docs do README |
+| Os offsets em pontos de código não tinham teste fora do plano básico. | teste de emoji |
+
+### Conferido e não confirmado
+
+- **V3 funde experimentos ignorando as condições.** A V3 foi escrita quando nenhum código gravava `condicoes` (sempre `{}`), então nenhum banco que aplicou V1 a V3 antes da V5 tem experimentos distintos por condição para fundir. Não foi alterada, porque editar uma migração já aplicada quebra o checksum do Flyway.
+- **Chaves absolutas antigas "seguem valendo".** A frase da seção anterior só vale se o caminho antigo ainda estiver dentro de `ATLAS_DOCUMENTOS_DIR`; fora dele a verificação de caminho recusa com 500. A checagem está correta e bloqueia travessia de diretório; foi o comentário que prometeu demais.
+
+### Decisões de produto, não tomadas
+
+Cada uma muda uma regra do projeto, então ficou para o Vitor decidir:
+
+1. **Autenticação e dono por documento.** É o achado mais grave. Enquanto não existir, o README diz para não expor a API. Junto vem a deduplicação por hash, que devolve o registro de quem enviou antes.
+2. **Exclusão de dados (LGPD).** Endpoint de remoção do PDF, das páginas e das medidas, e política de retenção. O `ON DELETE CASCADE` atual já apagaria tudo de uma vez; trocar por `RESTRICT` obrigaria o endpoint a apagar na ordem.
+3. **Processamento assíncrono.** Hoje síncrono. Os estados `PENDENTE` e `EM_ANDAMENTO` existem no esquema e nunca são usados; usá-los permitiria exclusão entre instâncias e fila no Postgres. A API passaria a devolver 202.
+4. **Armazenamento.** Disco local de uma instância; para várias instâncias, uma interface com implementação S3.
+5. **Paginação** de páginas e medidas, que muda o formato da resposta.
+6. **Medida repetida.** Não há chave natural; um reenvio cria duas medidas.
+7. **Procedência.** Quem afirmou e por qual método não é registrado; qualquer chamador grava REPORTADO.
+8. **Licença.** O repositório não tem arquivo LICENSE, e a escolha da licença é do autor.
+
 ### Em aberto
 
-1. O `CHECK upload_com_autorizacao_confirmada` do V2 aceita `obra_id IS NOT NULL` no lugar da confirmação, então protege menos do que o comentário diz.
-2. Trecho literal com quebra de linha (ver acima).
-3. Offsets de trechos repetidos na página (ver acima).
+1. Trecho literal com quebra de linha (ver acima).
