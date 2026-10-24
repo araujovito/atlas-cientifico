@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Processamento síncrono e idempotente para a primeira entrega do Atlas. */
 @Service
@@ -124,6 +125,65 @@ public class ProcessadorDocumentoService {
 			.param("execucao", execucaoId)
 			.query((rs, row) -> new PaginaPdf(rs.getInt("numero"), rs.getString("texto")))
 			.list();
+	}
+
+	@Transactional
+	public MedidaRegistrada registrarMedida(UUID documentoId, UUID execucaoId, MedidaCandidata medida) {
+		if (medida == null || vazio(medida.objeto()) || vazio(medida.metrica())) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Objeto e métrica são obrigatórios.");
+		}
+		if (!List.of("REPORTADO", "INFERIDO", "AUSENTE", "PENDENTE_REVISAO").contains(medida.estado())) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Estado da medida inválido.");
+		}
+		boolean ausente = "AUSENTE".equals(medida.estado());
+		if (ausente != (medida.valorOriginal() == null) || (!ausente && medida.valorOriginal().isBlank())) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Medida ausente não pode ter valor; os demais estados exigem valor.");
+		}
+
+		UUID versaoDocumento = jdbc.sql("""
+				SELECT versao_documento_id FROM execucao_processamento
+				WHERE id = :execucao AND versao_documento_id = :documento
+				""")
+			.param("execucao", execucaoId).param("documento", documentoId)
+			.query(UUID.class).optional()
+			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Execução não encontrada para este documento."));
+
+		String trecho = medida.trecho();
+		if (!ausente) {
+			if (medida.pagina() == null || medida.pagina() < 1 || vazio(trecho)) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe página e trecho literal da evidência.");
+			}
+			String textoPagina = jdbc.sql("SELECT texto FROM pagina_texto WHERE execucao_id=:execucao AND numero=:pagina")
+				.param("execucao", execucaoId).param("pagina", medida.pagina())
+				.query(String.class).optional()
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "A página informada não existe nesta extração."));
+			if (!textoPagina.contains(trecho)) {
+				throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "O trecho informado não aparece literalmente na página.");
+			}
+		}
+
+		UUID estudoId = jdbc.sql("INSERT INTO estudo (versao_documento_id, execucao_id) VALUES (:documento, :execucao) RETURNING id")
+			.param("documento", versaoDocumento).param("execucao", execucaoId).query(UUID.class).single();
+		UUID experimentoId = jdbc.sql("INSERT INTO experimento (estudo_id, objeto) VALUES (:estudo, :objeto) RETURNING id")
+			.param("estudo", estudoId).param("objeto", medida.objeto().trim()).query(UUID.class).single();
+		UUID medidaId = jdbc.sql("""
+				INSERT INTO medida (experimento_id, metrica, valor_original, unidade_original, estado)
+				VALUES (:experimento, :metrica, :valor, :unidade, :estado) RETURNING id
+				""")
+			.param("experimento", experimentoId).param("metrica", medida.metrica().trim())
+			.param("valor", medida.valorOriginal()).param("unidade", medida.unidadeOriginal())
+			.param("estado", medida.estado()).query(UUID.class).single();
+		UUID evidenciaId = null;
+		if (!ausente) {
+			evidenciaId = jdbc.sql("INSERT INTO evidencia (medida_id, pagina, trecho) VALUES (:medida, :pagina, :trecho) RETURNING id")
+				.param("medida", medidaId).param("pagina", medida.pagina()).param("trecho", trecho.trim())
+				.query(UUID.class).single();
+		}
+		return new MedidaRegistrada(estudoId, experimentoId, medidaId, evidenciaId, medida.estado());
+	}
+
+	private boolean vazio(String valor) {
+		return valor == null || valor.isBlank();
 	}
 
 	private java.util.Optional<ResultadoProcessamentoDocumento> buscarExecucao(UUID documentoId, String chave) {

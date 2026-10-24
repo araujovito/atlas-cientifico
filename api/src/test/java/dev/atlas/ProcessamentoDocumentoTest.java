@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -120,6 +121,44 @@ class ProcessamentoDocumentoTest {
 
 		mvc.perform(get("/api/documentos/{documentoId}/extracoes/{execucaoId}/paginas", UUID.randomUUID(), execucao))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void registraMedidaSomenteComTrechoLiteralDaPaginaEPreservaUnidade() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("Capacidade específica: 125 mAh/g medida no ciclo inicial"));
+		JsonNode processamento = processar(documento);
+		UUID execucao = UUID.fromString(processamento.get("execucaoId").asText());
+		var candidata = new dev.atlas.documentos.MedidaCandidata(
+				"LiFePO4", "capacidade específica", "125", "mAh/g", "REPORTADO", 1,
+				"Capacidade específica: 125 mAh/g");
+
+		MvcResult resposta = mvc.perform(post("/api/documentos/{documentoId}/extracoes/{execucaoId}/medidas", documento, execucao)
+				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsBytes(candidata)))
+			.andExpect(status().isOk()).andReturn();
+		JsonNode registrada = objectMapper.readTree(resposta.getResponse().getContentAsString());
+
+		assertThat(registrada.get("estado").asText()).isEqualTo("REPORTADO");
+		assertThat(jdbc.sql("SELECT valor_original || ' ' || unidade_original FROM medida WHERE id=:id")
+				.param("id", UUID.fromString(registrada.get("medidaId").asText())).query(String.class).single())
+				.isEqualTo("125 mAh/g");
+		assertThat(jdbc.sql("SELECT pagina || ':' || trecho FROM evidencia WHERE id=:id")
+				.param("id", UUID.fromString(registrada.get("evidenciaId").asText())).query(String.class).single())
+				.isEqualTo("1:Capacidade específica: 125 mAh/g");
+	}
+
+	@Test
+	void rejeitaMedidaQuandoTrechoNaoEstaNaPagina() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("Texto original da página"));
+		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
+		var candidata = new dev.atlas.documentos.MedidaCandidata(
+				"LiFePO4", "capacidade", "999", "mAh/g", "REPORTADO", 1, "999 mAh/g");
+
+		mvc.perform(post("/api/documentos/{documentoId}/extracoes/{execucaoId}/medidas", documento, execucao)
+				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsBytes(candidata)))
+			.andExpect(status().isUnprocessableEntity());
+		assertThat(jdbc.sql("SELECT count(*) FROM medida").query(Long.class).single()).isZero();
 	}
 
 	private UUID enviarPdf(byte[] conteudo) throws Exception {

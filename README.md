@@ -2,7 +2,7 @@
 
 Plataforma para explorar literatura científica, comparar estudos e conferir de onde vem cada informação extraída. Projeto pessoal de portfólio, em Java 21 e Spring Boot.
 
-**Estado: entrega 1 em andamento.** A API Spring Boot, o upload autorizado e a extração textual por página estão implementados e testados. Cada execução é idempotente por hash do documento e versão do processador; PDFs sem camada de texto ficam com estado `PRECISA_OCR`. OCR, extração de medidas, evidências e interface ainda estão planejados.
+**Estado: entrega 1 em andamento.** A API Spring Boot, o upload autorizado, a extração textual por página e o registro manual de medidas com evidência literal estão implementados e testados. Cada execução é idempotente por hash do documento e versão do processador; PDFs sem camada de texto ficam com estado `PRECISA_OCR`. Extração automática, OCR e interface ainda estão planejados.
 
 ## Ideia
 
@@ -32,6 +32,8 @@ Este endpoint só registra e armazena o PDF. Ainda não extrai texto, não confi
 `POST /api/documentos/{id}/extracoes` executa a extração síncrona com PDFBox, grava o texto separado por página e retorna o estado e a quantidade de páginas. A mesma combinação de PDF e versão do processador reutiliza a execução já gravada. PDFs sem texto pesquisável ficam com `PRECISA_OCR`; OCR ainda não está implementado.
 
 `GET /api/documentos/{documentoId}/extracoes/{execucaoId}/paginas` permite conferir o texto extraído, com o número de cada página. A execução precisa pertencer ao documento informado; caso contrário, a API retorna `404`.
+
+`POST /api/documentos/{documentoId}/extracoes/{execucaoId}/medidas` registra uma medida candidata sem chamar IA. Para estados diferentes de `AUSENTE`, a página e o trecho são obrigatórios, e o trecho precisa existir literalmente no texto extraído daquela página. Valor e unidade originais são preservados. O endpoint é um alicerce para avaliar extrações pré-gravadas, não uma extração automática.
 
 ## Documentos
 

@@ -13,7 +13,7 @@ Objetivo: importar um PDF que a pessoa pode processar, extrair texto por página
 | 3 | Upload de PDF com consentimento explícito: valida assinatura, tamanho e hash; guarda o original com nome derivado do hash; devolve o registro | Testes de integração: duplicata não cria registro, PDF inválido, excesso de tamanho e ausência de consentimento são recusados | testado |
 | 4 | Extração síncrona de texto por página (Apache PDFBox) | PDF multipágina persiste texto separado por página; PDF sem texto fica em `PRECISA_OCR` | testado |
 | 5 | Execução de processamento com chave de idempotência (hash + versão do processador) | Reprocessar devolve a execução existente e não duplica páginas; medidas serão cobertas quando a etapa 6 for implementada | testado |
-| 6 | Medidas com evidência a partir de extração pré-gravada (sem chamada paga) | Cada medida tem página e trecho; `valor_original` e unidade preservados | planejado |
+| 6 | Registro de medidas candidatas sem chamada paga | Testes de integração confirmam página e trecho literal, preservação de valor/unidade e rejeição de evidência inexistente | testado |
 | 7 | Endpoint e tela mínima que mostram uma medida e o trecho de origem | Abrir uma medida mostra a página e o trecho exatos | planejado |
 | 8 | CI no GitHub Actions rodando os testes | Workflow verde no repositório | planejado |
 
@@ -27,5 +27,5 @@ Seguem a seção 9 da especificação: 2 descoberta e catálogo, 3 processamento
 
 ## Pendências transversais
 
-- Escolher e documentar o conjunto de artigos de baterias (licença permite processar?) antes do passo 6.
+- Escolher e documentar o conjunto de artigos de baterias (licença permite processar?) antes de avaliar extração automática no passo 6.
 - Confirmar limites de requisição e termos do Unpaywall e do Europe PMC antes da entrega 2.
