@@ -13,9 +13,9 @@ Registro curto de decisões de projeto: o que foi escolhido, o porquê e o que f
 | Trecho repetido na página responde 409 | A posição apontaria para uma ocorrência que pode não ser a citada. | A pessoa precisa ampliar o trecho. | `dd65493` |
 | Valor de medida `REPORTADO` precisa estar no trecho | A evidência tinha de conter o que sustenta. | `INFERIDO` e `PENDENTE_REVISAO` podem apontar contexto. | `dd65493` |
 | Erros em RFC 9457 (`application/problem+json`) | A tela lê `detail`; sem isso toda recusa aparecia como "falhou (422)". | — | `e16ffd0` |
-| Listagem de medidas paginada (`limite` até 500, `deslocamento`) | Devolvia tudo em memória. A resposta continua sendo um array. | Paginação por deslocamento; não medida. | paginação |
+| Listagem de medidas paginada (`limite` até 500, `deslocamento`) | Devolvia tudo em memória. A resposta continua sendo um array. | Paginação por deslocamento; não medida. | `795573b` |
 | Limite de 500 páginas por PDF | Extração síncrona e sem teto era uma porta para derrubar a API. | Limita PDFs grandes, não lentos; o valor 500 é estimativa. | `01e5db6` |
-| CodeQL no CI | Faltava análise estática de segurança. | A primeira execução não abriu alertas; isso não prova ausência de falhas. | `codeql.yml` |
+| CodeQL no CI | Faltava análise estática de segurança. | A primeira execução não abriu alertas; isso não prova ausência de falhas. | `729bc9c` |
 
 ## Adiadas, com a razão
 
