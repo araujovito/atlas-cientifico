@@ -244,14 +244,23 @@ public class ProcessadorDocumentoService {
 			.param("condicoes", condicoesJson).query(UUID.class).single();
 		UUID medidaId = jdbc.sql("""
 				INSERT INTO medida (experimento_id, metrica, valor_original, unidade_original, estado)
-				VALUES (:experimento, :metrica, :valor, :unidade, :estado) RETURNING id
+				VALUES (:experimento, :metrica, :valor, :unidade, :estado)
+				ON CONFLICT (experimento_id, metrica, estado, (COALESCE(valor_original, '')), (COALESCE(unidade_original, '')))
+				DO UPDATE SET metrica = EXCLUDED.metrica
+				RETURNING id
 				""")
 			.param("experimento", experimentoId).param("metrica", medida.metrica().trim())
 			.param("valor", medida.valorOriginal()).param("unidade", medida.unidadeOriginal())
 			.param("estado", medida.estado()).query(UUID.class).single();
 		UUID evidenciaId = null;
 		if (!ausente) {
-			evidenciaId = jdbc.sql("INSERT INTO evidencia (medida_id, pagina, trecho, inicio_caractere, fim_caractere) VALUES (:medida, :pagina, :trecho, :inicio, :fim) RETURNING id")
+			evidenciaId = jdbc.sql("""
+					INSERT INTO evidencia (medida_id, pagina, trecho, inicio_caractere, fim_caractere)
+					VALUES (:medida, :pagina, :trecho, :inicio, :fim)
+					ON CONFLICT (medida_id, pagina, inicio_caractere, fim_caractere) WHERE inicio_caractere IS NOT NULL
+					DO UPDATE SET trecho = EXCLUDED.trecho
+					RETURNING id
+					""")
 				.param("medida", medidaId).param("pagina", medida.pagina()).param("trecho", trecho)
 				.param("inicio", inicioCaractere).param("fim", fimCaractere)
 				.query(UUID.class).single();

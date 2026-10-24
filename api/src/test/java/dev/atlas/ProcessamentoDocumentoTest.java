@@ -343,6 +343,36 @@ class ProcessamentoDocumentoTest {
 	}
 
 	@Test
+	void reenviarAMesmaMedidaNaoDuplicaEMesmoValorEmOutroLugarGanhaOutraEvidencia() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("tensao 3,4 V no ciclo 1 e outra vez tensao 3,5 V"));
+		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
+
+		registrar(documento, execucao, "LiFePO4", "tensao", "3,4", "V", "tensao 3,4 V");
+		registrar(documento, execucao, "LiFePO4", "tensao", "3,4", "V", "tensao 3,4 V");
+		assertThat(medidasDaExecucao(execucao)).isEqualTo(1);
+		assertThat(evidenciasDaExecucao(execucao)).isEqualTo(1);
+
+		// Mesma medida (valor 3,4 V) citada em outro ponto do texto: uma medida, duas evidências.
+		jdbc.sql("UPDATE pagina_texto SET texto = texto || ' Confirmado: tensao 3,4 V no ciclo 5' WHERE execucao_id=:e")
+				.param("e", execucao).update();
+		registrar(documento, execucao, "LiFePO4", "tensao", "3,4", "V", "Confirmado: tensao 3,4 V");
+		assertThat(medidasDaExecucao(execucao)).isEqualTo(1);
+		assertThat(evidenciasDaExecucao(execucao)).isEqualTo(2);
+
+		// Outro valor para a mesma métrica é outra medida.
+		registrar(documento, execucao, "LiFePO4", "tensao", "3,5", "V", "tensao 3,5 V");
+		assertThat(medidasDaExecucao(execucao)).isEqualTo(2);
+	}
+
+	private long evidenciasDaExecucao(UUID execucao) {
+		return jdbc.sql("""
+				SELECT count(*) FROM evidencia e JOIN medida m ON m.id = e.medida_id
+				JOIN experimento x ON x.id = m.experimento_id JOIN estudo s ON s.id = x.estudo_id
+				WHERE s.execucao_id = :e
+				""").param("e", execucao).query(Long.class).single();
+	}
+
+	@Test
 	void medidasDaMesmaExecucaoCompartilhamEstudoEExperimentoPorObjeto() throws Exception {
 		UUID documento = enviarPdf(pdfComPaginas("Capacidade 125 mAh/g e tensao 3,4 V"));
 		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
