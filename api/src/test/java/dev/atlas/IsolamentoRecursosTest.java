@@ -57,7 +57,7 @@ class IsolamentoRecursosTest {
         new Rota("DELETE","/api/colecoes/{id}/obras/{obra}",204),
         new Rota("PUT","/api/catalogo/obras/{id}/documentos/{documento}",204));
     // Rotas com id cujos testes de acesso cruzado estão em CompartilhamentoTest (precisam de arquivo no disco).
-    static final Set<String> COM_TESTE_PROPRIO=Set.of("PUT /api/documentos/{documentoId}/compartilhamento","GET /api/documentos/{documentoId}/original","GET /api/publico/documentos/{id}/original");
+    static final Set<String> COM_TESTE_PROPRIO=Set.of("PUT /api/documentos/{documentoId}/compartilhamento","GET /api/documentos/{documentoId}/compartilhamento","GET /api/documentos/{documentoId}/original","GET /api/publico/documentos/{id}/original");
     static final Set<String> PUBLICAS=Set.of("GET /api/catalogo/obras/{id}","GET /api/catalogo/obras/{obra}/citacoes","POST /api/catalogo/obras/{obra}/citacoes");
 
     @BeforeEach void contas() throws Exception {

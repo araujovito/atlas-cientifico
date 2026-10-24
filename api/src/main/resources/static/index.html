@@ -100,6 +100,14 @@
   </section>
 
   <section>
+    <h2>Documentos compartilhados por outras pessoas</h2>
+    <p class="muted">PDFs que seus donos marcaram como públicos. O arquivo é baixado, nunca aberto nesta página.</p>
+    <button id="public-refresh" type="button">Atualizar lista</button>
+    <p id="public-status" role="status" aria-live="polite"></p>
+    <div id="public-list"></div>
+  </section>
+
+  <section>
     <h2>1. Enviar um PDF</h2>
     <form id="upload-form">
       <label for="pdf">Arquivo PDF</label>
@@ -119,6 +127,13 @@
     <label for="page-select">Página</label>
     <select id="page-select"></select>
     <pre id="page-text"></pre>
+  
+    <div id="sharing">
+      <h3>Compartilhamento do PDF original</h3>
+      <p id="share-state" role="status" aria-live="polite">Este PDF é privado.</p>
+      <button id="share-toggle" type="button">Tornar público</button>
+      <a id="share-download" download>Baixar o original</a>
+    </div>
   </section>
 
   <section id="candidate" hidden>
@@ -478,5 +493,6 @@
 <script src="/revisao.js"></script>
 <script src="/citacoes.js"></script>
 <script src="/operacao.js"></script>
+<script src="/compartilhamento.js"></script>
 </body>
 </html>

@@ -41,6 +41,16 @@ public class UploadDocumentoService {
 				.param("dono", dono).query((rs, n) -> new Uso(rs.getLong("bytes"), cotas.bytesPorUsuario(), rs.getLong("docs"), cotas.documentosPorUsuario())).single();
 	}
 
+	/** Bytes únicos guardados em disco: o mesmo PDF enviado por várias contas ocupa um arquivo só. */
+	public long bytesTotais() {
+		return jdbc.sql("SELECT coalesce(sum(tamanho_bytes),0) FROM (SELECT DISTINCT ON (sha256) tamanho_bytes FROM versao_documento ORDER BY sha256) unicos")
+				.query(Long.class).single();
+	}
+
+	private static ResponseStatusException servidorCheio() {
+		return new ResponseStatusException(HttpStatus.INSUFFICIENT_STORAGE, "O armazenamento deste servidor está cheio. Tente novamente mais tarde.");
+	}
+
 	private static ResponseStatusException cotaEsgotada(Uso uso) {
 		return new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Cota de armazenamento esgotada: "
 				+ uso.documentos() + " de " + uso.documentosLimite() + " documentos e "
@@ -73,6 +83,7 @@ public class UploadDocumentoService {
 		// Recusa antes de gravar no disco; a checagem definitiva e atômica fica no INSERT, abaixo.
 		var antes = uso(dono);
 		if (antes.documentos() >= antes.documentosLimite() || antes.bytesUsados() + arquivo.getSize() > antes.bytesLimite()) throw cotaEsgotada(antes);
+		if (!hashJaGuardado(hash) && bytesTotais() + arquivo.getSize() > cotas.bytesTotais()) throw servidorCheio();
 
 		Path diretorio = properties.diretorio().toAbsolutePath().normalize();
 		Path destino = diretorio.resolve(hash + ".pdf").normalize();
@@ -99,15 +110,17 @@ public class UploadDocumentoService {
 		// de unicidade aborta a transação, e a consulta seguinte falharia (25P02)
 		// quando dois envios do mesmo PDF chegassem ao mesmo tempo.
 		Instant agora = Instant.now();
-		// A trava por conta serializa envios simultâneos: sem ela, dois uploads leem o mesmo uso e ambos passam da cota.
+		// A trava serializa só este passo (o I/O do arquivo já terminou): sem ela, dois uploads leem o mesmo uso e ambos
+		// passam da cota, da conta ou do servidor.
 		// O arquivo já gravado pode ser de outra conta (mesmo hash), por isso não é apagado se o INSERT for recusado.
 		var inserido = transacoes.execute(tx -> {
-			jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(:chave, 0))").param("chave", "cota:" + dono).query((rs, n) -> 0).single();
+			jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(:chave, 0))").param("chave", "cota").query((rs, n) -> 0).single();
 			var existe = jdbc.sql("SELECT EXISTS(SELECT 1 FROM versao_documento WHERE sha256=:hash AND dono_id=:dono)")
 					.param("hash", hash).param("dono", dono).query(Boolean.class).single();
 			var agoraUso = uso(dono);
 			if (!existe && (agoraUso.documentos() >= agoraUso.documentosLimite()
 					|| agoraUso.bytesUsados() + arquivo.getSize() > agoraUso.bytesLimite())) throw cotaEsgotada(agoraUso);
+			if (!existe && !hashJaGuardado(hash) && bytesTotais() + arquivo.getSize() > cotas.bytesTotais()) throw servidorCheio();
 			// ON CONFLICT em vez de capturar DuplicateKeyException: no Postgres uma violação
 			// de unicidade aborta a transação, e a consulta seguinte falharia (25P02)
 			// quando dois envios do mesmo PDF chegassem ao mesmo tempo.
@@ -125,6 +138,10 @@ public class UploadDocumentoService {
 			return new DocumentoUpload(inserido.get(), hash, arquivo.getSize(), false, agora);
 		}
 		return buscarPorHash(hash,dono).orElseThrow();
+	}
+
+	private boolean hashJaGuardado(String hash) {
+		return jdbc.sql("SELECT EXISTS(SELECT 1 FROM versao_documento WHERE sha256=:hash)").param("hash", hash).query(Boolean.class).single();
 	}
 
 	private java.util.Optional<DocumentoUpload> buscarPorHash(String hash,UUID dono) {

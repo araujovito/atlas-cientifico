@@ -78,15 +78,37 @@ Login correto zera os contadores do par e do e-mail. O e-mail não fica em claro
 
 Limites que seguem: **(1)** atrás de proxy o IP da conexão é o do proxy e todos dividem um balde; `ATLAS_LIMITES_CABECALHO_IP` usa o último valor do cabeçalho informado, o que só é seguro se a porta da aplicação for alcançável apenas pelo proxy. **(2)** quem controla muitos IPs consegue chegar aos 20 erros do e-mail e travar aquela conta por 15 minutos: é a troca por não permitir força bruta distribuída. **(3)** janela fixa admite até o dobro do limite na virada da janela. **(4)** upload, processamento e consultas ao OpenAlex ainda não têm limite por usuário.
 
-### Cota de armazenamento por conta (implementada em 2026-10-24)
+### Cota de armazenamento (implementada em 2026-10-24; padrões revistos no mesmo dia)
 
-`atlas.cotas.bytes-por-usuario` (padrão 5 GiB) e `atlas.cotas.documentos-por-usuario` (padrão 5000). Os padrões são generosos e foram escolhidos pelo revisor, sem medição de uso nem de custo; são valores ajustáveis, não uma proibição, de acordo com o objetivo de guardar o maior número possível de documentos.
+O autor não soube dizer a cota adequada, então o revisor escolheu **valores conservadores para um site de cadastro aberto**, ajustáveis por variável de ambiente e **sem medição de uso nem de custo**:
 
-- Recusa com 413 e mensagem com o uso atual, **antes** de gravar no disco; reenviar um PDF que a conta já tem devolve o existente e não consome cota.
-- A checagem definitiva roda numa transação com trava de aconselhamento por conta (`pg_advisory_xact_lock`), então dois envios simultâneos não passam juntos do limite. Teste com duas threads: um recebe 201 e o outro 413.
+| Variável | Padrão | Por quê |
+|---|---|---|
+| `ATLAS_COTAS_BYTES_POR_USUARIO` | 1 GiB | Com cadastro aberto, 5 GiB por conta somados a contas ilimitadas enchem qualquer disco. |
+| `ATLAS_COTAS_DOCUMENTOS_POR_USUARIO` | 1000 | Cobre um uso intenso de pesquisador; é fácil subir. |
+| `ATLAS_COTAS_BYTES_TOTAIS` | 20 GiB | Teto do servidor inteiro, contado por PDF **único** (o mesmo arquivo enviado por várias contas ocupa um só). **Ajuste para cerca de 70% do espaço livre do disco de produção.** |
+
+Quando o primeiro uso real mostrar o consumo médio por conta, os três números devem ser revistos; subir é só trocar a variável.
+
+- Recusa por conta: 413, com o uso atual na mensagem. Recusa por teto do servidor: 507. Ambas **antes** de gravar no disco; reenviar um PDF que a conta já tem não consome cota, e o mesmo PDF de outra conta não ocupa espaço novo.
+- A checagem definitiva roda numa transação com trava de aconselhamento, então envios simultâneos não passam juntos do limite (teste com duas threads: um 201 e um 413).
 - `GET /api/conta/uso` mostra o uso da própria conta, exibido na tela.
-- Se a gravação do arquivo ocorreu e o INSERT é recusado pela cota numa corrida, o arquivo fica no disco (pode ser compartilhado por hash com outra conta): resíduo recuperável, não vazamento.
-- A cota conta bytes de PDFs originais; não conta texto extraído, medidas nem metadados no banco.
+- Se o arquivo já foi gravado e o INSERT perde a corrida, o arquivo fica no disco (pode ser compartilhado por hash com outra conta): resíduo recuperável.
+- Conta só os bytes dos PDFs originais; texto extraído, medidas e metadados no banco não entram.
+
+### Compartilhamento do PDF original (implementado em 2026-10-24, decisão do autor)
+
+O autor decidiu que o original pode ser devolvido a outras pessoas e que o site será público. Como foi desenhado:
+
+- Cada documento nasce **PRIVADO**; só o dono o torna PUBLICO (`PUT /api/documentos/{id}/compartilhamento`) e pode voltar a PRIVADO. Compartilhar por padrão seria publicar arquivos de terceiros sem o dono ter decidido.
+- Qualquer conta logada lista (`GET /api/publico/documentos`, sem dono nem e-mail) e baixa (`GET /api/publico/documentos/{id}/original`) o que for PUBLICO. Fora disso, 404 sem distinguir o motivo.
+- O arquivo é sempre `attachment`, com nome derivado do id (nunca do título digitado), `nosniff`, `Content-Security-Policy: sandbox` e `no-store`: nunca é renderizado na origem do site.
+- `ATLAS_PDF_ORIGINAL`: `COMPARTILHADO` (padrão), `SOMENTE_DONO` ou `DESABILITADO` mudam o comportamento sem alterar código.
+- **Bloqueio pelo operador** (pedido de remoção, por exemplo): `UPDATE versao_documento SET compartilhamento='BLOQUEADO' WHERE id='<uuid>';`. O documento sai da lista e do download público, o dono não consegue desfazer pela API e continua baixando o próprio. Para remover de vez é preciso apagar a linha e o arquivo (`<sha256>.pdf`) à mão, conferindo que nenhuma outra conta usa o mesmo hash.
+
+**Risco jurídico, sem juízo:** hospedar e redistribuir PDFs de terceiros expõe o operador a pedidos de retirada e a responsabilidade por direitos autorais, que dependem da jurisdição escolhida e do aviso e retirada que o operador praticar. **Não há** formulário de denúncia, política de uso, termos de serviço nem fluxo de notificação; o bloqueio é manual por SQL. A declaração de autorização no upload é do usuário, não verificada.
+
+**Ainda exige sessão:** não há download anônimo. Com cadastro aberto, na prática qualquer pessoa cria uma conta para baixar.
 
 ## Fase B — limites para quem é público
 

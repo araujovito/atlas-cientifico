@@ -50,6 +50,12 @@ public class CompartilhamentoController {
 		throw new ResponseStatusException(HttpStatus.CONFLICT, "Este documento foi bloqueado pelo operador e não pode ser compartilhado.");
 	}
 
+	@GetMapping("/documentos/{documentoId}/compartilhamento")
+	public Estado estado(@PathVariable UUID documentoId) {
+		return new Estado(jdbc.sql("SELECT compartilhamento FROM versao_documento WHERE id = :id AND dono_id = :dono")
+				.param("id", documentoId).param("dono", usuario.id()).query(String.class).optional().orElseThrow(CompartilhamentoController::naoEncontrado));
+	}
+
 	@GetMapping("/documentos/{documentoId}/original")
 	public ResponseEntity<Resource> originalDoDono(@PathVariable UUID documentoId) {
 		if (politica.pdfOriginal() == PoliticaContas.PdfOriginal.DESABILITADO) throw naoEncontrado();

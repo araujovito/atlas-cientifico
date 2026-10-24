@@ -31,6 +31,8 @@ class CotaArmazenamentoTest {
 	@Autowired UploadDocumentoService upload;
 	@Autowired JdbcClient jdbc;
 	@Autowired MockMvc mvc;
+	@Autowired dev.atlas.documentos.UploadProperties uploadProperties;
+	@Autowired org.springframework.transaction.support.TransactionTemplate transacoes;
 
 	private UUID usuario() {
 		return jdbc.sql("INSERT INTO usuario(email,senha_hash) VALUES (:e,'sem-login') RETURNING id")
@@ -97,5 +99,18 @@ class CotaArmazenamentoTest {
 				.andExpect(jsonPath("$.bytesUsados").value(700)).andExpect(jsonPath("$.documentos").value(1))
 				.andExpect(jsonPath("$.bytesLimite").value(2500)).andExpect(jsonPath("$.documentosLimite").value(4));
 		mvc.perform(get("/api/conta/uso")).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void tetoDoServidorRecusaComArmazenamentoInsuficienteMasMesmoPdfDeOutraContaNaoOcupaEspacoNovo() {
+		UUID a = usuario(), b = usuario();
+		var limitado = new UploadDocumentoService(jdbc, uploadProperties,
+				new dev.atlas.documentos.CotasProperties(1_000_000, 100, upload.bytesTotais() + 1500), transacoes);
+		var conteudo = pdf(1000);
+		limitado.receber(conteudo, true, null, a);
+		// Mesmo conteúdo, outra conta: o arquivo em disco é um só, então cabe no teto.
+		limitado.receber(conteudo, true, null, b);
+		assertThatThrownBy(() -> limitado.receber(pdf(1000), true, null, b)).isInstanceOfSatisfying(ResponseStatusException.class,
+				e -> assertThat(e.getStatusCode().value()).isEqualTo(507));
 	}
 }

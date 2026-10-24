@@ -50,6 +50,9 @@ class CompartilhamentoTest {
 				.andExpect(header().string("Content-Security-Policy", "sandbox")).andReturn().getResponse();
 		assertThat(resposta.getContentAsByteArray()).isEqualTo(bytes);
 		mvc.perform(com(get("/api/documentos/" + doc + "/original"), b)).andExpect(status().isNotFound());
+		mvc.perform(com(get("/api/documentos/" + doc + "/compartilhamento"), b)).andExpect(status().isNotFound());
+		mvc.perform(com(get("/api/documentos/" + doc + "/compartilhamento"), a)).andExpect(status().isOk())
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.compartilhamento").value("PRIVADO"));
 		mvc.perform(com(put("/api/documentos/" + doc + "/compartilhamento"), b).contentType("application/json").content(corpo(true)))
 				.andExpect(status().isNotFound());
 	}
@@ -87,6 +90,8 @@ class CompartilhamentoTest {
 		mvc.perform(com(put("/api/documentos/" + doc + "/compartilhamento"), a).contentType("application/json").content(corpo(true))).andExpect(status().isOk());
 		jdbc.sql("UPDATE versao_documento SET chave_armazenamento='inexistente.pdf' WHERE id=:id").param("id", doc).update();
 		mvc.perform(com(get("/api/publico/documentos/" + doc + "/original"), b)).andExpect(status().isNotFound());
+		// Não deixa um documento público sem arquivo na lista para os outros testes que compartilham o banco.
+		jdbc.sql("UPDATE versao_documento SET compartilhamento='PRIVADO' WHERE id=:id").param("id", doc).update();
 		mvc.perform(com(get("/api/publico/documentos").param("limite", "0"), b)).andExpect(status().isBadRequest());
 		mvc.perform(com(get("/api/publico/documentos").param("limite", "101"), b)).andExpect(status().isBadRequest());
 		mvc.perform(get("/api/publico/documentos")).andExpect(status().isUnauthorized());

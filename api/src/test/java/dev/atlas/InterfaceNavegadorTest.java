@@ -307,6 +307,25 @@ class InterfaceNavegadorTest {
 		return obras;
 	}
 
+	@Test
+	void donoTornaOPdfPublicoEVoltaAPrivadoEAListaPublicaMostraSoEsseDocumentoQuandoPublico() throws Exception {
+		enviarPdf("Capacidade 160 mAh/g.");
+		assertThat(pagina.locator("#share-state")).hasText("Este PDF é privado: só você o baixa.");
+		String href = pagina.locator("#share-download").getAttribute("href");
+		assertThat(pagina.locator("#share-download")).hasAttribute("href", java.util.regex.Pattern.compile("/api/documentos/[0-9a-f-]{36}/original"));
+		String id = href.replace("/api/documentos/", "").replace("/original", "");
+		pagina.locator("#share-toggle").click();
+		assertThat(pagina.locator("#share-state")).hasText("Este PDF é público: outras contas podem baixá-lo.");
+		pagina.locator("#public-refresh").click();
+		// O banco é compartilhado entre as classes de teste: confere só este documento, não a contagem total.
+		assertThat(pagina.locator("#public-list a[href*='" + id + "']")).hasCount(1);
+		pagina.locator("#share-toggle").click();
+		assertThat(pagina.locator("#share-state")).hasText("Este PDF é privado: só você o baixa.");
+		pagina.locator("#public-refresh").click();
+		assertThat(pagina.locator("#public-status")).not().hasText("");
+		assertThat(pagina.locator("#public-list a[href*='" + id + "']")).hasCount(0);
+	}
+
 	private static byte[] pdfComTexto(String... textos) throws Exception {
 		try (PDDocument documento = new PDDocument(); ByteArrayOutputStream saida = new ByteArrayOutputStream()) {
 			for (String texto : textos) {
