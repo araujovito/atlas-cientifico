@@ -326,6 +326,36 @@ class InterfaceNavegadorTest {
 		assertThat(pagina.locator("#public-list a[href*='" + id + "']")).hasCount(0);
 	}
 
+	@Test
+	void criarContaMostraOCodigoUmaVezEARecuperacaoTrocaASenhaPelaTela() {
+		String email = "tela-" + UUID.randomUUID() + "@example.com";
+		// Contexto próprio: o da classe já está com a sessão de outra conta.
+		var outroContexto = navegador.newContext();
+		var nova = outroContexto.newPage();
+		nova.navigate("http://127.0.0.1:" + porta + "/");
+		nova.locator("#auth-email").fill(email);
+		nova.locator("#auth-password").fill("Senha inicial bem longa 123");
+		nova.locator("#auth-register").click();
+		assertThat(nova.locator("#recovery-panel")).isVisible();
+		String codigo = nova.locator("#recovery-code-value").textContent();
+		org.junit.jupiter.api.Assertions.assertTrue(codigo.matches("([A-Z2-9]{4}-){4}[A-Z2-9]{4}"), codigo);
+		nova.locator("#recovery-ack").click();
+		assertThat(nova.locator("#recovery-panel")).isHidden();
+		assertThat(nova.locator("#recovery-code-value")).isEmpty();
+		nova.locator("#auth-logout").click();
+		// O logout recarrega a página: espera o formulário de entrada voltar antes de seguir.
+		assertThat(nova.locator("#auth-form")).isVisible();
+		nova.locator("#auth-forgot").click();
+		nova.locator("#recover-email").fill(email);
+		nova.locator("#recover-code").fill(codigo.toLowerCase());
+		nova.locator("#recover-password").fill("Senha redefinida pela tela 789");
+		nova.locator("#recover-submit").click();
+		assertThat(nova.locator("#account-email")).hasText(email);
+		assertThat(nova.locator("#recovery-panel")).isVisible();
+		org.junit.jupiter.api.Assertions.assertNotEquals(codigo, nova.locator("#recovery-code-value").textContent());
+		outroContexto.close();
+	}
+
 	private static byte[] pdfComTexto(String... textos) throws Exception {
 		try (PDDocument documento = new PDDocument(); ByteArrayOutputStream saida = new ByteArrayOutputStream()) {
 			for (String texto : textos) {

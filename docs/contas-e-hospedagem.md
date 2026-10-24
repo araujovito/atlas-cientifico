@@ -123,6 +123,17 @@ Interceptor `LimiteDeUso`, depois da autorização por dono: recurso alheio resp
 
 Configurável em `atlas.limites.uso-*`. Um teste confere que cada rota limitada existe de fato no mapeamento, para uma rota renomeada não ficar sem limite sem ninguém perceber.
 
+### Recuperação de senha sem e-mail (implementada em 2026-10-24)
+
+O projeto não pode gastar com um servidor de e-mail, então **não há recuperação por e-mail nem confirmação de endereço**. No lugar, ao criar a conta o sistema mostra **uma única vez** um código de recuperação de 100 bits (`XXXX-XXXX-XXXX-XXXX-XXXX`). Só o SHA-256 fica no banco (V19); com essa entropia um hash rápido basta.
+
+- `POST /api/auth/recuperar` (e-mail, código, nova senha): troca a senha, **encerra todas as sessões da conta**, entra com sessão nova e devolve um código **novo**; o usado deixa de valer. Aceita o código em minúsculas e sem hífens.
+- `POST /api/auth/codigo-recuperacao` (logado, exige a senha atual): gera outro código; o anterior deixa de valer. Serve às contas criadas antes desta mudança, que não têm código.
+- Mesma resposta (401, mesma mensagem) para código errado, e-mail inexistente e conta sem código; a comparação é feita sempre. Os mesmos limites de falhas do login valem (por e-mail+IP e por e-mail), e o limite por IP.
+- A tela tem "Esqueci minha senha", mostra o código uma vez com aviso e oferece gerar um novo.
+
+**Limites:** quem perder a senha e o código **não tem como recuperar a conta** (não há administrador que redefina pela interface; o operador pode trocar o hash no banco). Quem obtiver o código troca a senha: é um segundo segredo equivalente à senha. Sem confirmação de e-mail, qualquer pessoa cria conta com o e-mail de outra; isso não dá acesso a nada dessa pessoa, mas permite ocupar o endereço. A estrutura para e-mail (envio, confirmação, link de redefinição) **não foi feita**: exige um serviço de envio, que tem custo ou conta de terceiros.
+
 ## Fase B — limites para quem é público
 
 - Limite de taxa por usuário e por IP em upload, processamento e nas rotas que chamam o OpenAlex.

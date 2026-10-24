@@ -18,6 +18,9 @@ public class SessaoService {
     public record Usuario(UUID id,String email) {}
     public record Sessao(String hash,Usuario usuario,String csrf,Instant expiraEm) {}
     public record Criada(String token,Sessao sessao) {}
+    /** Sessão nova mais o código de recuperação, que só existe em claro neste retorno. */
+    public record ComCodigo(Criada criada,String codigo) {}
+    private static final String ALFABETO="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private final JdbcClient jdbc;
     private final TransactionTemplate tx;
     private final PoliticaContas politica;
@@ -53,15 +56,15 @@ public class SessaoService {
                 .param("e",java.sql.Timestamp.from(expira)).update();
         return new Criada(token,new Sessao(hash(token),usuario,csrf,expira));
     }
-    public Criada cadastrar(String email,String senha,Sessao anterior) {
+    public ComCodigo cadastrar(String email,String senha,Sessao anterior) {
         String normal=email(email); validarSenha(senha);
         if(!politica.permite(normal)) throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Cadastro não disponível para este e-mail.");
-        String senhaHash=encoder.encode(senha);
+        String senhaHash=encoder.encode(senha),codigo=novoCodigo();
         return tx.execute(s->{
-            var id=jdbc.sql("INSERT INTO usuario(email,senha_hash) VALUES (:e,:h) ON CONFLICT(email) DO NOTHING RETURNING id")
-                    .param("e",normal).param("h",senhaHash).query(UUID.class).optional();
+            var id=jdbc.sql("INSERT INTO usuario(email,senha_hash,recuperacao_hash) VALUES (:e,:h,:r) ON CONFLICT(email) DO NOTHING RETURNING id")
+                    .param("e",normal).param("h",senhaHash).param("r",hashCodigo(codigo)).query(UUID.class).optional();
             if(id.isEmpty()) throw new ResponseStatusException(HttpStatus.CONFLICT,"Não foi possível cadastrar esta conta.");
-            revogar(anterior); return criar(new Usuario(id.get(),normal));
+            revogar(anterior); return new ComCodigo(criar(new Usuario(id.get(),normal)),codigo);
         });
     }
     public Criada entrar(String email,String senha,Sessao anterior) {
@@ -74,6 +77,41 @@ public class SessaoService {
         if(!senhaCorreta || conta.isEmpty() || !conta.get().ativo())
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"E-mail ou senha incorretos.");
         return tx.execute(s->{revogar(anterior);return criar(new Usuario(conta.get().id(),normal));});
+    }
+    /** Troca a senha com o código de recuperação; encerra todas as sessões da conta e devolve um código NOVO. */
+    public ComCodigo recuperar(String email,String codigo,String novaSenha,Sessao anterior) {
+        String normal=email(email); validarSenha(novaSenha);
+        var conta=jdbc.sql("SELECT id,recuperacao_hash FROM usuario WHERE email=:e AND ativo")
+                .param("e",normal).query((rs,n)->Map.entry(rs.getObject("id",UUID.class),Optional.ofNullable(rs.getString("recuperacao_hash")))).optional();
+        byte[] enviado=hashCodigo(codigo==null?"":codigo).getBytes(StandardCharsets.UTF_8);
+        // Compara sempre, mesmo sem conta ou sem código, para o tempo não distinguir os casos.
+        byte[] guardado=conta.flatMap(Map.Entry::getValue).orElse("0".repeat(64)).strip().getBytes(StandardCharsets.UTF_8);
+        if(conta.isEmpty() || conta.get().getValue().isEmpty() || !MessageDigest.isEqual(enviado,guardado))
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"E-mail ou código de recuperação incorretos.");
+        String senhaHash=encoder.encode(novaSenha),novo=novoCodigo(); UUID id=conta.get().getKey();
+        return tx.execute(s->{
+            jdbc.sql("UPDATE usuario SET senha_hash=:h,recuperacao_hash=:r WHERE id=:id").param("h",senhaHash).param("r",hashCodigo(novo)).param("id",id).update();
+            jdbc.sql("DELETE FROM sessao WHERE usuario_id=:id").param("id",id).update();
+            revogar(anterior); return new ComCodigo(criar(new Usuario(id,normal)),novo);
+        });
+    }
+    /** Gera outro código para quem já está logado, exigindo a senha atual; o anterior deixa de valer. */
+    public String renovarCodigo(UUID usuario,String senhaAtual) {
+        var hash=jdbc.sql("SELECT senha_hash FROM usuario WHERE id=:id AND ativo").param("id",usuario).query(String.class).optional();
+        boolean ok=encoder.matches(senhaAtual==null?"":senhaAtual,hash.filter(h->h.startsWith("$argon2id$")).orElse(hashInexistente));
+        if(!ok || hash.isEmpty()) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Senha incorreta.");
+        String novo=novoCodigo();
+        jdbc.sql("UPDATE usuario SET recuperacao_hash=:r WHERE id=:id").param("r",hashCodigo(novo)).param("id",usuario).update();
+        return novo;
+    }
+    /** 20 caracteres de um alfabeto de 32 (100 bits), em grupos de 4; sem 0/O/1/I para não confundir ao copiar. */
+    private String novoCodigo(){
+        var b=new StringBuilder();
+        for(int i=0;i<20;i++){ if(i>0 && i%4==0) b.append('-'); b.append(ALFABETO.charAt(random.nextInt(32))); }
+        return b.toString();
+    }
+    static String hashCodigo(String codigo){
+        return hash(codigo.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]",""));
     }
     public void revogar(Sessao sessao){jdbc.sql("DELETE FROM sessao WHERE token_hash=:h").param("h",sessao.hash()).update();}
     public static boolean igual(String a,String b){return a!=null && b!=null && MessageDigest.isEqual(a.getBytes(StandardCharsets.UTF_8),b.getBytes(StandardCharsets.UTF_8));}

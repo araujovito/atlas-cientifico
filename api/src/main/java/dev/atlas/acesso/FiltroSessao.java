@@ -33,7 +33,7 @@ public class FiltroSessao extends OncePerRequestFilter {
         String token=request.getCookies()==null?null:Arrays.stream(request.getCookies()).filter(c->c.getName().equals(SessaoService.COOKIE)).map(Cookie::getValue).findFirst().orElse(null);
         var sessao=sessoes.carregar(token).orElse(null);
         if(path.equals("/api/auth/sessao") && request.getMethod().equals("GET")){chain.doFilter(request,response);return;}
-        boolean entrada=path.equals("/api/auth/login") || path.equals("/api/auth/cadastro");
+        boolean entrada=path.equals("/api/auth/login") || path.equals("/api/auth/cadastro") || path.equals("/api/auth/recuperar");
         if(sessao==null || (!entrada && sessao.usuario()==null)){erro(response,401,"Entre na sua conta.");return;}
         if(!Set.of("GET","HEAD","OPTIONS").contains(request.getMethod())){
             if(!origemPermitida(request,origensExtras) || !SessaoService.igual(sessao.csrf(),request.getHeader("X-Atlas-CSRF"))){erro(response,403,"Validação CSRF recusada.");return;}

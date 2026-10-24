@@ -23,9 +23,18 @@ async function contaRequest(path,body) {
   }
   return response.status === 204 ? null : response.json();
 }
+function mostrarCodigo(codigo) {
+  document.querySelector('#recovery-code-value').textContent = codigo;
+  document.querySelector('#recovery-panel').hidden = false;
+}
+document.querySelector('#recovery-ack').onclick = () => {
+  document.querySelector('#recovery-panel').hidden = true;
+  document.querySelector('#recovery-code-value').textContent = '';
+};
 function mostrarConta(estado) {
   atlasCsrf = estado.csrfToken;
   atlasUsuario = estado.usuario;
+  if (estado.codigoRecuperacao) mostrarCodigo(estado.codigoRecuperacao);
   try {
     if (sessionStorage.getItem('atlas-usuario') !== (atlasUsuario?.id || '')) {
       sessionStorage.removeItem('atlas-processamento');
@@ -70,6 +79,37 @@ async function autenticar(path) {
   } catch(error) { document.querySelector('#auth-state').textContent = error.message || 'Falha na conexão. Tente novamente.'; }
   finally { login.disabled = false; register.disabled = false; }
 }
+document.querySelector('#auth-forgot').onclick = () => {
+  document.querySelector('#recover-form').hidden = false;
+  document.querySelector('#recover-email').value = document.querySelector('#auth-email').value;
+};
+document.querySelector('#recover-cancel').onclick = () => { document.querySelector('#recover-form').hidden = true; };
+document.querySelector('#recover-form').onsubmit = async event => {
+  event.preventDefault();
+  const botao = document.querySelector('#recover-submit');
+  if (botao.disabled) return;
+  botao.disabled = true;
+  try {
+    atlasCsrf = (await contaRequest('sessao')).csrfToken;
+    mostrarConta(await contaRequest('recuperar', {
+      email: document.querySelector('#recover-email').value, codigo: document.querySelector('#recover-code').value,
+      novaSenha: document.querySelector('#recover-password').value }));
+    document.querySelector('#recover-form').hidden = true;
+    document.querySelector('#recover-form').reset();
+  } catch (error) { document.querySelector('#auth-state').textContent = error.message || 'Falha na conexão. Tente novamente.'; }
+  finally { botao.disabled = false; }
+};
+document.querySelector('#renew-code').onclick = async event => {
+  const botao = event.currentTarget, campo = document.querySelector('#renew-password');
+  if (botao.disabled || !campo.value) return;
+  botao.disabled = true;
+  try {
+    const resposta = await contaRequest('codigo-recuperacao', { senha: campo.value });
+    mostrarCodigo(resposta.codigoRecuperacao);
+    campo.value = '';
+  } catch (error) { document.querySelector('#auth-state').textContent = error.message; }
+  finally { botao.disabled = false; }
+};
 document.querySelector('#auth-form').onsubmit = event => { event.preventDefault(); autenticar('login'); };
 document.querySelector('#auth-register').onclick = () => autenticar('cadastro');
 document.querySelector('#auth-logout').onclick = async event => {

@@ -45,9 +45,27 @@
       <label for="auth-password">Senha (12 a 128 caracteres)</label><input id="auth-password" type="password" autocomplete="current-password" minlength="12" maxlength="128" required>
       <button id="auth-login" type="submit" disabled>Entrar</button>
       <button id="auth-register" type="button" disabled>Criar conta</button>
+      <button id="auth-forgot" type="button">Esqueci minha senha</button>
     </form>
-    <div id="account-tools" hidden><p id="account-email"></p><p id="account-usage" class="muted"></p><button id="auth-logout" type="button">Sair</button></div>
-    <p class="muted">Documentos, medidas, coleções e tarefas pertencem à sua conta. Obras do catálogo continuam compartilhadas. Não há compartilhamento do PDF original nesta versão.</p>
+    <form id="recover-form" hidden>
+      <p class="muted">Use o código de recuperação que apareceu quando você criou a conta. Sem ele, não há como recuperar a senha: este serviço não envia e-mail.</p>
+      <label for="recover-email">E-mail</label><input id="recover-email" type="email" autocomplete="username" maxlength="254" required>
+      <label for="recover-code">Código de recuperação</label><input id="recover-code" autocomplete="off" maxlength="40" required>
+      <label for="recover-password">Nova senha (12 a 128 caracteres)</label><input id="recover-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+      <button id="recover-submit" type="submit">Redefinir senha</button>
+      <button id="recover-cancel" type="button">Cancelar</button>
+    </form>
+    <div id="recovery-panel" role="alert" hidden>
+      <p>Seu código de recuperação de senha: <strong id="recovery-code-value"></strong></p>
+      <p class="muted">Anote em lugar seguro. Ele <strong>não será mostrado de novo</strong> e é a única forma de recuperar a senha. Quem o tiver pode trocar sua senha.</p>
+      <button id="recovery-ack" type="button">Anotei o código</button>
+    </div>
+    <div id="account-tools" hidden><p id="account-email"></p><p id="account-usage" class="muted"></p><button id="auth-logout" type="button">Sair</button>
+      <details><summary>Gerar um novo código de recuperação</summary>
+        <label for="renew-password">Confirme sua senha atual</label><input id="renew-password" type="password" autocomplete="current-password" maxlength="128">
+        <button id="renew-code" type="button">Gerar novo código</button><span class="muted"> O código anterior deixa de valer.</span>
+      </details></div>
+    <p class="muted">Documentos, medidas, coleções e tarefas pertencem à sua conta. Obras do catálogo continuam compartilhadas. Os PDFs são privados até você marcá-los como públicos.</p>
   </section>
   <div id="workspace" hidden>
   <div id="status" role="status" aria-live="polite"></div>
