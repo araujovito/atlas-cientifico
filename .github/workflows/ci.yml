@@ -34,6 +34,12 @@ jobs:
       - name: Tornar o Maven Wrapper executável
         run: chmod +x api/mvnw
 
+      - name: Instalar Chromium e dependências do Playwright
+        working-directory: api
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_GC: '1'
+        run: ./mvnw --batch-mode --no-transfer-progress exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install --with-deps chromium"
+
       - name: Executar testes com PostgreSQL via Testcontainers
         working-directory: api
         run: ./mvnw --batch-mode --no-transfer-progress test
