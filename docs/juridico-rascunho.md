@@ -49,7 +49,7 @@ Se você é titular de direitos sobre um arquivo disponibilizado aqui e quer que
 UPDATE versao_documento SET compartilhamento = 'BLOQUEADO' WHERE id = '<uuid>';
 ```
 
-Para remover de vez: conferir que nenhuma outra conta usa o mesmo `sha256`; apagar as linhas do documento e o arquivo `<sha256>.pdf` do volume `documentos`. Registre a data, o aviso recebido e a ação tomada, fora do sistema.
+Para remover de vez: `./deploy/remover-documento.sh <uuid> "aviso de DD/MM/AAAA"`. Ele apaga o documento, as medidas e revisões ligadas a ele e o arquivo (se nenhuma outra conta tiver o mesmo PDF), e registra a remoção em `remocao_documento` sem guardar título nem conteúdo. Faça uma cópia antes: não há desfazer. Guarde o aviso recebido e a decisão fora do sistema.
 
 ## 4. Perguntas para a revisão jurídica
 

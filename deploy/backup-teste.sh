@@ -80,4 +80,30 @@ if command -v systemd-analyze >/dev/null; then
   for unidade in atlas-backup.service atlas-backup.timer; do sed "s#/opt/atlas#$(cd .. && pwd)#g" "systemd/$unidade" > "$trabalho/unidades/$unidade"; done
   systemd-analyze verify "$trabalho/unidades/atlas-backup.service" "$trabalho/unidades/atlas-backup.timer" 2>&1 | grep -v "^$" | grep -iE "error|fail|invalid|unknown" && falhar "unidades systemd inválidas" || true
 fi
-echo "OK: cópia, retenção, restauração, cifra e recusas verificadas."
+
+# Remoção pelo operador: revisão imutável incluída, arquivo compartilhado preservado até a última conta, registro gravado.
+sql "INSERT INTO usuario(email,senha_hash) VALUES ('bkp2@example.com','x')" >/dev/null
+sql "INSERT INTO versao_documento(origem,sha256,tamanho_bytes,chave_armazenamento,autorizacao_declarada,autorizacao_confirmada_em,dono_id)
+     SELECT 'UPLOAD','$hash',15,'$hash.pdf',true,now(),id FROM usuario WHERE email='bkp2@example.com'" >/dev/null
+doc1="$(val "SELECT d.id FROM versao_documento d JOIN usuario u ON u.id=d.dono_id WHERE u.email='bkp@example.com'")"
+doc2="$(val "SELECT d.id FROM versao_documento d JOIN usuario u ON u.id=d.dono_id WHERE u.email='bkp2@example.com'")"
+sql "WITH e AS (INSERT INTO execucao_processamento(versao_documento_id,versao_processador,estado,chave_idempotencia,finalizado_em,usuario_id)
+       SELECT '$doc1','t','CONCLUIDO','k-remocao',now(),dono_id FROM versao_documento WHERE id='$doc1' RETURNING id,usuario_id),
+     s AS (INSERT INTO estudo(versao_documento_id,execucao_id) SELECT '$doc1',id FROM e RETURNING id),
+     x AS (INSERT INTO experimento(estudo_id,objeto) SELECT id,'obj' FROM s RETURNING id),
+     m AS (INSERT INTO medida(experimento_id,metrica,estado,usuario_id) SELECT x.id,'cap','AUSENTE',e.usuario_id FROM x,e RETURNING id)
+     INSERT INTO revisao_medida(medida_id,versao,autor_declarado,motivo,anterior,correcao,usuario_id) SELECT m.id,1,'rev','teste','{}','{}',e.usuario_id FROM m,e" >/dev/null
+[[ "$(val 'SELECT count(*) FROM revisao_medida')" == "1" ]] || falhar "revisão de teste não criada"
+
+./remover-documento.sh "$doc1" "aviso de teste 1" >/dev/null
+[[ "$(val "SELECT count(*) FROM versao_documento WHERE id='$doc1'")" == "0" ]] || falhar "documento 1 não foi removido"
+[[ "$(val 'SELECT count(*) FROM revisao_medida')" == "0" ]] || falhar "revisão imutável não foi removida com o documento"
+[[ "$(val "SELECT tgenabled FROM pg_trigger WHERE tgname='revisao_imutavel'")" == "O" ]] || falhar "gatilho das revisões ficou desligado"
+docker run --rm -v "${projeto}_documentos:/dados:ro" --entrypoint test postgres:18 -f "/dados/$hash.pdf" || falhar "arquivo compartilhado foi apagado cedo demais"
+./remover-documento.sh "$doc2" "aviso de teste 2" >/dev/null
+if docker run --rm -v "${projeto}_documentos:/dados:ro" --entrypoint test postgres:18 -f "/dados/$hash.pdf"; then falhar "arquivo sobrou depois da última conta"; fi
+[[ "$(val "SELECT count(*) FROM remocao_documento WHERE sha256='$hash'")" == "2" ]] || falhar "registro de remoções incompleto"
+[[ "$(val "SELECT count(*) FILTER (WHERE arquivo_removido) FROM remocao_documento WHERE sha256='$hash'")" == "1" ]] || falhar "só a última remoção deveria marcar o arquivo como removido"
+if ./remover-documento.sh "$doc2" "de novo" >/dev/null 2>&1; then falhar "removeu documento inexistente"; fi
+if ./remover-documento.sh "nao-e-uuid" "x" >/dev/null 2>&1; then falhar "aceitou UUID inválido"; fi
+echo "OK: cópia, retenção, restauração, cifra, remoção e recusas verificadas."
