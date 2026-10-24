@@ -1,0 +1,26 @@
+{
+  "sintetica": true,
+  "revisorDeclarado": null,
+  "versaoExtrator": "fixture-manual-v1-nao-e-modelo",
+  "hashPrompt": null,
+  "referencia": [
+    {
+      "chave": {"sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "experimento": "A", "metrica": "capacidade"},
+      "estado": "REPORTADO", "valor": "125", "unidade": "mAh/g", "pagina": 1, "trecho": "125 mAh/g", "condicoes": {"temperatura": "25 C"}
+    },
+    {
+      "chave": {"sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "experimento": "A", "metrica": "retencao"},
+      "estado": "AUSENTE", "valor": null, "unidade": null, "pagina": null, "trecho": null, "condicoes": {}
+    }
+  ],
+  "candidatos": [
+    {
+      "chave": {"sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "experimento": "A", "metrica": "capacidade"},
+      "estado": "REPORTADO", "valor": "125", "unidade": "mAh/g", "pagina": 2, "trecho": "125 mAh/g", "condicoes": {"temperatura": "25 C"}
+    },
+    {
+      "chave": {"sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "experimento": "A", "metrica": "retencao"},
+      "estado": "AUSENTE", "valor": null, "unidade": null, "pagina": null, "trecho": null, "condicoes": {}
+    }
+  ]
+}
