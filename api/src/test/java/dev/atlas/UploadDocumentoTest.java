@@ -5,6 +5,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import dev.atlas.documentos.DocumentoUpload;
+import dev.atlas.documentos.UploadDocumentoService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -26,6 +34,7 @@ class UploadDocumentoTest {
 
 	@Autowired MockMvc mvc;
 	@Autowired JdbcClient jdbc;
+	@Autowired UploadDocumentoService service;
 
 	@Test
 	@Transactional
@@ -83,6 +92,38 @@ class UploadDocumentoTest {
 				("%PDF-1.7\n" + "x".repeat(200)).getBytes(StandardCharsets.UTF_8));
 		mvc.perform(multipart("/api/documentos").file(arquivo).param("autorizacaoConfirmada", "true"))
 				.andExpect(status().isPayloadTooLarge());
+	}
+
+	/**
+	 * Sem @Transactional de propósito: cada envio precisa da sua própria conexão e do seu commit
+	 * para que a violação de unicidade aconteça de verdade. Os testes acima rodam numa transação
+	 * só e nunca chegam a esse caminho. Várias rodadas porque a janela da corrida é curta.
+	 */
+	@Test
+	void envioSimultaneoDoMesmoPdfConvergeParaUmUnicoRegistro() throws Exception {
+		var pool = Executors.newFixedThreadPool(2);
+		String marcador = "concorrencia-" + UUID.randomUUID();
+		try {
+			for (int rodada = 0; rodada < 25; rodada++) {
+				String corpo = "simultaneo " + UUID.randomUUID();
+				var largada = new CyclicBarrier(2);
+				Callable<DocumentoUpload> envio = () -> {
+					largada.await();
+					return service.receber(pdf(corpo), true, marcador);
+				};
+				var primeiro = pool.submit(envio);
+				var segundo = pool.submit(envio);
+				DocumentoUpload a = primeiro.get(30, TimeUnit.SECONDS);
+				DocumentoUpload b = segundo.get(30, TimeUnit.SECONDS);
+
+				assertThat(a.id()).isEqualTo(b.id());
+				assertThat(List.of(a.duplicado(), b.duplicado())).containsExactlyInAnyOrder(false, true);
+			}
+		} finally {
+			pool.shutdownNow();
+			// Remove pelo marcador do título, inclusive de rodadas que falharam antes de devolver o hash.
+			jdbc.sql("DELETE FROM versao_documento WHERE titulo_declarado = :m").param("m", marcador).update();
+		}
 	}
 
 	private static MockMultipartFile pdf(String corpo) {

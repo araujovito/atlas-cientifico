@@ -18,7 +18,7 @@ Registro das revisões feitas por um segundo agente sobre o código escrito pelo
 
 ### Limites da revisão
 
-- A corrida do upload foi corrigida por raciocínio. Os testes de upload rodam numa transação só e não simulam duas conexões, então nenhum teste prova a correção.
+- A corrida do upload foi corrigida primeiro por raciocínio. Em seguida entrou um teste com duas conexões (25 rodadas, sem transação de teste). Contra o código anterior à correção (`acdf443`) ele reproduz o erro `25P02`; com a correção passa. Como a janela da corrida é curta, passar não prova ausência de corrida, só que ela não apareceu em 25 rodadas.
 - A migração V3 junta estudos e experimentos duplicados, mas só foi executada num banco vazio.
 - Um teste exigia a tabela `medida` vazia e dependia da ordem de execução. Foi escopado por execução.
 
@@ -37,4 +37,3 @@ Sem defeito bloqueante. Pontos a conhecer:
 2. O `CHECK upload_com_autorizacao_confirmada` do V2 aceita `obra_id IS NOT NULL` no lugar da confirmação, então protege menos do que o comentário diz.
 3. Trecho literal com quebra de linha (ver acima).
 4. Offsets de trechos repetidos na página (ver acima).
-5. Teste de duas conexões para o upload simultâneo.
