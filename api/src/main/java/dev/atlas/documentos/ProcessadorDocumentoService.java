@@ -195,6 +195,16 @@ public class ProcessadorDocumentoService {
 			if (inicioUtf16 < 0) {
 				throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "O trecho informado não aparece literalmente na página.");
 			}
+			// Posição ambígua: o destaque apontaria para a primeira ocorrência, que pode não ser a citada.
+			if (textoPagina.indexOf(trecho, inicioUtf16 + 1) >= 0) {
+				throw new ResponseStatusException(HttpStatus.CONFLICT,
+					"O trecho aparece mais de uma vez nesta página. Amplie o trecho para identificar a ocorrência.");
+			}
+			// REPORTADO afirma que o valor está no texto; a evidência precisa conter o que ela sustenta.
+			if ("REPORTADO".equals(medida.estado()) && !trecho.contains(medida.valorOriginal().trim())) {
+				throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+					"O valor informado não aparece no trecho. Use PENDENTE_REVISAO ou INFERIDO se ele não foi reportado literalmente.");
+			}
 			inicioCaractere = textoPagina.codePointCount(0, inicioUtf16);
 			fimCaractere = inicioCaractere + trecho.codePointCount(0, trecho.length());
 		}

@@ -220,6 +220,51 @@ class ProcessamentoDocumentoTest {
 	}
 
 	@Test
+	void rejeitaTrechoQueApareceMaisDeUmaVezNaPagina() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("taxa 0.5 C no ciclo 1 e taxa 0.5 C no ciclo 2"));
+		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
+
+		mvc.perform(post("/api/documentos/{documentoId}/extracoes/{execucaoId}/medidas", documento, execucao)
+				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsBytes(candidata("0.5", "taxa 0.5 C", "REPORTADO"))))
+			.andExpect(status().isConflict())
+			.andExpect(result -> assertThat(motivo(result)).contains("mais de uma vez"));
+		assertThat(medidasDaExecucao(execucao)).isZero();
+
+		registrar(documento, execucao, "LiFePO4", "taxa", "0.5", "C", "taxa 0.5 C no ciclo 2");
+		assertThat(medidasDaExecucao(execucao)).isEqualTo(1);
+	}
+
+	@Test
+	void medidaReportadaPrecisaTerOValorNoTrecho() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("Introducao ao tema. Capacidade 125 mAh/g no ciclo inicial"));
+		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
+
+		mvc.perform(post("/api/documentos/{documentoId}/extracoes/{execucaoId}/medidas", documento, execucao)
+				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsBytes(candidata("250", "Introducao ao tema", "REPORTADO"))))
+			.andExpect(status().isUnprocessableEntity())
+			.andExpect(result -> assertThat(motivo(result)).contains("não aparece no trecho"));
+		assertThat(medidasDaExecucao(execucao)).isZero();
+
+		// Quem não afirma que o valor foi reportado pode apontar um trecho de contexto.
+		mvc.perform(post("/api/documentos/{documentoId}/extracoes/{execucaoId}/medidas", documento, execucao)
+				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsBytes(candidata("250", "Introducao ao tema", "PENDENTE_REVISAO"))))
+			.andExpect(status().isOk());
+	}
+
+	// O MockMvc não segue para /error, então a mensagem é lida da exceção resolvida.
+	private static String motivo(MvcResult result) {
+		return ((org.springframework.web.server.ResponseStatusException) result.getResolvedException()).getReason();
+	}
+
+	private dev.atlas.documentos.MedidaCandidata candidata(String valor, String trecho, String estado) {
+		return new dev.atlas.documentos.MedidaCandidata(
+				"LiFePO4", "metrica", valor, "u", estado, 1, trecho, java.util.Map.of());
+	}
+
+	@Test
 	void medidasDaMesmaExecucaoCompartilhamEstudoEExperimentoPorObjeto() throws Exception {
 		UUID documento = enviarPdf(pdfComPaginas("Capacidade 125 mAh/g e tensao 3,4 V"));
 		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
