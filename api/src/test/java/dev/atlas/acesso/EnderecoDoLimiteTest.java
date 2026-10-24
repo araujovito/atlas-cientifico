@@ -8,7 +8,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 class EnderecoDoLimiteTest {
 
 	private static ContaController controlador(String cabecalho) {
-		return new ContaController(null, null, new LimitesProperties(5, 3600, 20, 5, 20, 900, 60, 600, cabecalho));
+		return new ContaController(null, null, new LimitesProperties(5, 3600, 20, 5, 20, 900, 60, 600, cabecalho, 30, 60, 60, 120, 600));
 	}
 
 	private static MockHttpServletRequest requisicao(String xff) {

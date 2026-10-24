@@ -8,6 +8,11 @@ import org.springframework.web.servlet.config.annotation.*;
 @ConditionalOnWebApplication(type=ConditionalOnWebApplication.Type.SERVLET)
 public class ConfiguracaoAcessoWeb implements WebMvcConfigurer {
     private final AutorizacaoRecursos autorizacao;
-    public ConfiguracaoAcessoWeb(AutorizacaoRecursos autorizacao){this.autorizacao=autorizacao;}
-    @Override public void addInterceptors(InterceptorRegistry registry){registry.addInterceptor(autorizacao).addPathPatterns("/api/**");}
+    private final LimiteDeUso uso;
+    public ConfiguracaoAcessoWeb(AutorizacaoRecursos autorizacao,LimiteDeUso uso){this.autorizacao=autorizacao;this.uso=uso;}
+    @Override public void addInterceptors(InterceptorRegistry registry){
+        registry.addInterceptor(autorizacao).addPathPatterns("/api/**").order(0);
+        // Depois da autorização: recurso alheio responde 404 sem gastar o limite de quem perguntou.
+        registry.addInterceptor(uso).addPathPatterns("/api/**").order(1);
+    }
 }

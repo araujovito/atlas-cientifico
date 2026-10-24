@@ -76,7 +76,7 @@ Contadores de janela fixa no PostgreSQL (valem com mais de uma instância), chec
 
 Login correto zera os contadores do par e do e-mail. O e-mail não fica em claro na tabela (SHA-256). Tudo é configurável em `atlas.limites.*`.
 
-Limites que seguem: **(1)** atrás de proxy o IP da conexão é o do proxy e todos dividem um balde; `ATLAS_LIMITES_CABECALHO_IP` usa o último valor do cabeçalho informado, o que só é seguro se a porta da aplicação for alcançável apenas pelo proxy. **(2)** quem controla muitos IPs consegue chegar aos 20 erros do e-mail e travar aquela conta por 15 minutos: é a troca por não permitir força bruta distribuída. **(3)** janela fixa admite até o dobro do limite na virada da janela. **(4)** upload, processamento e consultas ao OpenAlex ainda não têm limite por usuário.
+Limites que seguem: **(1)** atrás de proxy o IP da conexão é o do proxy e todos dividem um balde; `ATLAS_LIMITES_CABECALHO_IP` usa o último valor do cabeçalho informado, o que só é seguro se a porta da aplicação for alcançável apenas pelo proxy. **(2)** quem controla muitos IPs consegue chegar aos 20 erros do e-mail e travar aquela conta por 15 minutos: é a troca por não permitir força bruta distribuída. **(3)** janela fixa admite até o dobro do limite na virada da janela. **(4)** o limite de uso por conta abaixo não protege contra quem cria muitas contas: o freio ali é o cadastro por IP.
 
 ### Cota de armazenamento (implementada em 2026-10-24; padrões revistos no mesmo dia)
 
@@ -109,6 +109,19 @@ O autor decidiu que o original pode ser devolvido a outras pessoas e que o site 
 **Risco jurídico, sem juízo:** hospedar e redistribuir PDFs de terceiros expõe o operador a pedidos de retirada e a responsabilidade por direitos autorais, que dependem da jurisdição escolhida e do aviso e retirada que o operador praticar. **Não há** formulário de denúncia, política de uso, termos de serviço nem fluxo de notificação; o bloqueio é manual por SQL. A declaração de autorização no upload é do usuário, não verificada.
 
 **Ainda exige sessão:** não há download anônimo. Com cadastro aberto, na prática qualquer pessoa cria uma conta para baixar.
+
+### Limite de uso por conta (implementado em 2026-10-24)
+
+Interceptor `LimiteDeUso`, depois da autorização por dono: recurso alheio responde 404 sem gastar o limite de quem perguntou. Mesma tabela e mesma resposta (429 com `Retry-After`) do limite de tentativas. Janela de 10 minutos por conta; os números são escolhas do revisor, sem medição de tráfego:
+
+| Balde | Rotas | Padrão |
+|---|---|---|
+| `upload` | `POST /api/documentos` | 30 |
+| `processar` | `POST .../extracoes` e `.../processamentos` | 60 |
+| `fonte` | busca, DOI, autores, importação e citações (chamam o OpenAlex) | 60 |
+| `download` | `GET .../original` do dono e público | 120 |
+
+Configurável em `atlas.limites.uso-*`. Um teste confere que cada rota limitada existe de fato no mapeamento, para uma rota renomeada não ficar sem limite sem ninguém perceber.
 
 ## Fase B — limites para quem é público
 
