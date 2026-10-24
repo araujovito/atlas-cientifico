@@ -44,6 +44,11 @@ class ChaveApiTest {
 	}
 
 	@Test
+	void parametroDeCaminhoNaoContornaOFiltro() throws Exception {
+		mvc.perform(get(rota().replace("/api/", "/api;x=1/"))).andExpect(status().isUnauthorized());
+	}
+
+	@Test
 	void aTelaEstaticaNaoExigeAChave() throws Exception {
 		mvc.perform(get("/index.html")).andExpect(status().isOk());
 	}

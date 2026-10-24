@@ -31,7 +31,21 @@ public class FiltroChaveApi extends OncePerRequestFilter {
 
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) {
-		return !request.getRequestURI().startsWith("/api/");
+		return !normalizar(request.getRequestURI()).startsWith("/api/");
+	}
+
+	/**
+	 * Reduz o URI bruto à forma com que o Spring MVC o enxerga: sem parâmetros de caminho
+	 * ("/api;x=1/..." chega ao controlador como "/api/...") e sem barras repetidas.
+	 */
+	static String normalizar(String uri) {
+		String caminho = uri.replaceAll(";[^/]*", "");
+		try {
+			caminho = java.net.URLDecoder.decode(caminho.replace("+", "%2B"), StandardCharsets.UTF_8);
+		} catch (IllegalArgumentException e) {
+			// Escape inválido: o Tomcat já recusa; mantém o texto bruto, que continua sujeito ao filtro.
+		}
+		return caminho.replaceAll("/{2,}", "/");
 	}
 
 	@Override
