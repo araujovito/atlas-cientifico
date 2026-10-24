@@ -93,7 +93,7 @@ Limites que seguem: **(1)** atrás de proxy o IP da conexão é o do proxy e tod
 - Limite de taxa por usuário e por IP em upload, processamento e nas rotas que chamam o OpenAlex.
 - Cota de armazenamento e de documentos por usuário (o autor quer o maior número possível de documentos; a cota é um valor ajustável, não uma proibição).
 - TLS no proxy reverso; a porta do compose continua em 127.0.0.1.
-- Backups do PostgreSQL e do armazenamento de documentos com restauração testada: hoje não há.
+- Backups do PostgreSQL e do armazenamento de documentos com restauração testada: scripts e prova de ida e volta em [backup.md](backup.md); criptografia, envio para fora da máquina e agendamento seguem sem implementar.
 
 ## Fase C — armazenamento de objetos (quando houver mais de uma instância)
 

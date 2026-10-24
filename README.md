@@ -93,5 +93,6 @@ O fluxo preferido é `POST /api/documentos/{id}/processamentos` (202 e Location)
 
 - [Especificação inicial](docs/especificacao.md): recorte, arquitetura, modelo de dados, eventos, decisões e entregas.
 - [Decisões](docs/decisoes.md): o que foi escolhido, adiado e por quê.
+- [Cópias de segurança e restauração](docs/backup.md): scripts e a prova de ida e volta que roda no CI.
 - [Contas, armazenamento e hospedagem](docs/contas-e-hospedagem.md): plano ainda não implementado para abrir o site a mais de uma pessoa.
 - [Revisão cruzada](docs/revisao-cruzada.md): achados da revisão por um segundo agente, o que foi corrigido e o que segue aberto.

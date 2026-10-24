@@ -44,6 +44,10 @@ jobs:
         working-directory: api
         run: ./mvnw --batch-mode --no-transfer-progress test
 
+      # Sobe só o PostgreSQL do compose em um projeto descartável; não depende do JAR nem de imagem própria.
+      - name: Provar cópia e restauração (ida e volta)
+        run: bash deploy/backup-teste.sh
+
       # Guarda os relatórios quando algo falha, para ler o motivo sem reproduzir localmente.
       - name: Guardar relatórios dos testes
         if: failure()
