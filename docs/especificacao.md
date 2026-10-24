@@ -129,12 +129,12 @@ Engenharia: testes de deduplicação, mensagens repetidas, falha de provedor, in
 
 ## 9. Entregas
 
-Cada entrega termina executável. Estado de todas hoje: **Planejado**.
+Cada entrega termina executável. O roteiro em `docs/roteiro.md` mantém o estado atual de implementação e os critérios de conclusão; esta seção descreve o escopo-alvo.
 
 **1. Importar, processar e mostrar evidência (vertical mínima)**
 - Objetivo: importar um artigo de acesso aberto permitido (ou PDF do usuário), processar, persistir e exibir medidas com evidência.
 - Escopo: API Spring Boot, PostgreSQL, armazenamento local compatível com S3, um trabalhador, extração de texto por página, extração de poucos campos com resposta de IA pré-gravada para a demonstração, tela mínima de evidência.
-- Dependências: JDK 21 e Maven/Gradle (hoje ausentes nesta máquina), Docker, validação do conjunto candidato de artigos.
+- Dependências: JDK 21 e Docker (disponíveis; ver `docs/ambiente.md`), além da validação do conjunto candidato de artigos.
 - Aceite: um documento importado gera uma execução, medidas com página e trecho, e reimportar o mesmo arquivo não duplica nada.
 - Testes: JUnit + Testcontainers para idempotência e persistência.
 - Demonstração: importar e abrir a evidência de um valor.
@@ -168,5 +168,5 @@ Cada entrega termina executável. Estado de todas hoje: **Planejado**.
 - Confirmar limites de requisições e termos de uso do Unpaywall e do Europe PMC (a documentação não carregou; só o comportamento dos endpoints foi verificado).
 - Medir de fato a disponibilidade de artigos abertos no recorte antes da entrega 1.
 - Decidir Kafka versus fila no Postgres após a entrega 3.
-- Instalar JDK 21.
+- Escolher e revisar o conjunto de referência antes de avaliar extração automática.
 - O trecho sobre dois módulos científicos (herpetologia e petrologia) foi tratado como segunda mensagem e **não está incluído** nesta versão.

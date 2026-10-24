@@ -19,7 +19,7 @@ Objetivo: importar um PDF que a pessoa pode processar, extrair texto por página
 
 Dependências: Docker (presente), JDK 21 (instalado em `~/.local/jdk`, ver `docs/ambiente.md`).
 
-Limitações conhecidas desta entrega: um domínio, poucos campos, sem OCR, sem Kafka (o processamento ainda é síncrono; a decisão de fila entra na entrega 3). Medidas, evidências, revisão humana e interface continuam planejadas.
+Limitações conhecidas desta entrega: um domínio, poucos campos, sem OCR, sem Kafka (o processamento ainda é síncrono; a decisão de fila entra na entrega 3). O registro de medida é manual; extração automática e revisão humana ainda não estão implementadas. A interface existente é um protótipo mínimo, não o frontend React/TS previsto na especificação.
 
 ## Entregas seguintes
 

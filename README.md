@@ -2,7 +2,7 @@
 
 Plataforma para explorar literatura científica, comparar estudos e conferir de onde vem cada informação extraída. Projeto pessoal de portfólio, em Java 21 e Spring Boot.
 
-**Estado: entrega 1 em andamento.** A API Spring Boot, o upload autorizado, a extração textual por página e o registro manual de medidas com evidência literal estão implementados e testados. Cada execução é idempotente por hash do documento e versão do processador; PDFs sem camada de texto ficam com estado `PRECISA_OCR`. Extração automática, OCR e interface ainda estão planejados.
+**Estado: entrega 1 em andamento.** A API Spring Boot, o upload autorizado, a extração textual por página, o registro manual de medidas com evidência literal e uma tela mínima estão implementados e testados. Cada execução é idempotente por hash do documento e versão do processador; PDFs sem camada de texto ficam com estado `PRECISA_OCR`. Extração automática, OCR e interface completa continuam planejados.
 
 ## Ideia
 
