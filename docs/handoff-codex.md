@@ -28,7 +28,7 @@ Cada correção é um commit pequeno cuja mensagem explica o motivo e o limite d
 | Erros saem como problem+json (`detail`) | `application.properties` | A tela deixa de mostrar o motivo. |
 | Upload não abre transação em volta do arquivo | `UploadDocumentoService.receber` | Só aparece sob carga; não recoloque `@Transactional` ali. |
 
-Migrações aplicadas **não se editam** (quebra o checksum do Flyway); crie a próxima (`V9`...).
+Migrações aplicadas **não se editam** (quebra o checksum do Flyway); crie a próxima (atualmente `V10`).
 
 ## Como trabalhar a partir daqui
 
@@ -51,3 +51,14 @@ O README, o roteiro e qualquer post só podem afirmar o que o código e os teste
 
 - `d96a061` adiciona um teste real de navegador para upload de PDF sintético, registro de medida e abertura/destaque da evidência. Playwright 1.63.0 e Chromium são dependências de teste; o CI os instala antes da suíte. `./mvnw test` passou localmente com 52 testes. A execução do CI GitHub após o push ainda precisa ser conferida pelo revisor.
 - O teste cobre só Chromium e o fluxo principal com PDF pesquisável. Não afirma compatibilidade com outros navegadores, responsividade, nem validação OCR. A limitação de tempo da extração segue aberta.
+
+## Continuação: recuperação da tela e início da entrega 2
+
+O autor autorizou tomar decisões visando a qualidade do projeto e pediu para questionar essas decisões com evidência. Os commits abaixo estão locais, à espera da revisão/push:
+
+- `5fe2575`: limpa documento, páginas, resultados e formulário ao começar/falhar novo upload; bloqueia troca durante gravação de medida. O teste de página vazia revelou que PDFBox pode retornar somente uma quebra de linha; agora a tela mostra o aviso. Chromium cobre fluxo principal, OCR, recuperação de chave e troca de documento.
+- `5693848`: `GET /api/catalogo/obras/por-doi` e conector OpenAlex. Consulta somente metadados. DOI normalizado, origem fixa, chave opcional do provedor em Bearer, prazo HTTP completo, intervalo por instância e cooldown em 429. Testes reproduziram que `HttpRequest.timeout` sozinho não cobre corpo lento no Java 21; o prazo agora cancela a operação completa.
+- `9ff978b`: busca por DOI na tela; fonte dos metadados visível, texto externo sem interpretação de HTML e recuperação em erro.
+- `./mvnw test` passou com **86 testes**. Os testes da fonte usam servidor HTTP local e o navegador usa respostas controladas da busca. Verificação manual adicional pela API local contra o OpenAlex real: dois DOIs dos candidatos responderam 200, com IDs `W4220682882` e `W4220906497`. DOI inválido respondeu 400 com `detail`.
+
+O contrato, a configuração, os erros e os limites estão em [openalex.md](openalex.md). Persistência/deduplicação do catálogo, busca por tema/autor e coleções ainda não foram implementadas. Os dois artigos de demonstração tiveram a licença do XML reconferida; não foi validado um conjunto de avaliação nem baixado PDF nesta rodada. A suíte passou localmente; o CI remoto após estes commits ainda precisa ser conferido. Sem post durante o trabalho: o fechamento do dia reúne os fatos para revisão do Vitor.

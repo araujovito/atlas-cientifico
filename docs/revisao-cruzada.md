@@ -85,3 +85,10 @@ O trecho com quebra de linha foi corrigido em `f537bd6`. Restam as decisões adi
 
 - `d96a061` adiciona um teste ponta a ponta em Chromium para enviar um PDF sintético, registrar uma medida e navegar até o trecho destacado. O teste e a suíte completa passaram localmente (52 testes). O novo passo de instalação do navegador no GitHub Actions ainda aguarda execução remota depois do push; não foi contado como CI verde.
 - Cobertura do navegador permanece limitada a Chromium e ao fluxo com texto pesquisável. Responsividade, outros navegadores e PDFs que exigem OCR não foram testados.
+
+### Evidências da implementação seguinte — aguardando revisão cruzada
+
+- `5fe2575`: acrescenta casos Chromium de OCR, chave incorreta e substituição de documento. Foram corrigidos o reaproveitamento de formulário/resultados antigos após novo envio e a mensagem para páginas cujo texto é apenas espaço em branco. A limitação histórica de OCR na seção anterior foi coberta por esses testes; responsividade/outros navegadores seguem abertos.
+- `5693848`: consulta OpenAlex somente por DOI. Testes HTTP locais verificam mapeamento, validação, falhas, cooldown e prazo antes/depois dos cabeçalhos. O teste de corpo atrasado falhou com apenas o timeout do `HttpRequest` no Java 21 e passou com o prazo da operação completa e cancelamento.
+- `9ff978b`: interface da busca, com teste de texto HTML não executado e limpeza do resultado após erro.
+- Suíte completa: 86 testes passaram localmente. A API local também fez duas consultas reais com HTTP 200; o contrato e os limites estão em [openalex.md](openalex.md). Isso não substitui revisão independente nem uma nova execução do CI no GitHub.

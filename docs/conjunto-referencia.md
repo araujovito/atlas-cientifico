@@ -41,3 +41,14 @@ As licenças de figuras e materiais de terceiros devem ser verificadas nos próp
 5. Ter uma segunda revisão humana antes de usar qualquer anotação para calcular métricas.
 
 Este documento registra candidatos e uma anotação pendente de revisão, não uma afirmação de que o conjunto de referência já foi validado ou medido.
+
+## Seleção para demonstração em 2026-10-24
+
+Dois artigos foram escolhidos para demonstrar a busca por DOI. Os XMLs da Europe PMC foram consultados novamente nesta rodada e ambos declaram CC BY 4.0 para o artigo, com ressalvas para material de terceiros:
+
+| DOI | Uso nesta demonstração | Consulta pela API do Atlas contra OpenAlex |
+|---|---|---|
+| `10.1038/s41467-022-28959-5` | Metadados; a anotação em prosa descrita acima continua candidata para o fluxo manual de evidência | HTTP 200, `W4220682882` |
+| `10.1038/s41597-022-01217-5` | Metadados e, em demonstração futura, leitura de texto; evitar figuras reproduzidas e o dataset OSF com licença não confirmada | HTTP 200, `W4220906497` |
+
+Esta rodada não baixou nem incorporou PDFs e não voltou a verificar seus hashes. Os testes automatizados de upload continuam usando PDFs sintéticos. A licença do XML do artigo foi reconferida; créditos específicos de figuras/datasets e a revisão humana das anotações continuam pendentes. Esses dois itens não formam um gabarito de avaliação.

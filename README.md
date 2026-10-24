@@ -4,6 +4,8 @@ Plataforma para explorar literatura científica, comparar estudos e conferir de 
 
 **Estado: entrega 1 em andamento.** A API Spring Boot, o upload autorizado, a extração textual por página, o registro manual de medidas com evidência literal e uma tela mínima estão implementados e testados. Cada execução é idempotente por hash do documento e versão do processador; PDFs sem camada de texto ficam com estado `PRECISA_OCR`. Extração automática, OCR e interface completa continuam planejados.
 
+**Início da entrega 2:** consulta por DOI no OpenAlex pela API e pela tela, com título, autores, ano e identificadores. A busca ainda não salva obras no catálogo. O roteiro distingue essa consulta das etapas futuras de persistência, deduplicação e coleções.
+
 ## Ideia
 
 Ligar *artigo → experimento → resultado → trecho de evidência*. Cada valor numa tabela de comparação aponta para a página e o trecho de origem, mantém o valor e a unidade originais e diz se foi reportado, inferido, ausente ou se aguarda revisão.
@@ -30,6 +32,7 @@ PLAYWRIGHT_SKIP_BROWSER_GC=1 ./mvnw exec:java -Dexec.mainClass=com.microsoft.pla
 ```
 
 No GitHub Actions, o workflow instala Chromium e suas dependências antes de executar a mesma suíte em pushes e pull requests para `main`.
+Os testes do conector usam uma fonte HTTP local; os testes da busca no navegador usam respostas controladas da API. A suíte não depende da disponibilidade do OpenAlex público.
 
 ## Executar a API
 
@@ -51,6 +54,17 @@ Este é um projeto de portfólio em desenvolvimento, e os pontos abaixo não est
 - **A extração é síncrona**, dentro da requisição, com limite de páginas mas sem limite de tempo; o armazenamento é o disco local de uma instância. A lista de medidas é paginada (`limite`, `deslocamento`).
 
 A revisão que originou esta lista está em [docs/revisao-cruzada.md](docs/revisao-cruzada.md), e as decisões tomadas e adiadas, com o motivo, em [docs/decisoes.md](docs/decisoes.md).
+
+## Busca por DOI
+
+Na tela inicial, use **Buscar um artigo por DOI** com um identificador como `10.1038/s41467-022-28959-5` ou seu link `https://doi.org/...`. O resultado identifica a fonte dos metadados e mostra links para o DOI e para o OpenAlex. Nenhum PDF é baixado nem autorização de uso do texto completo é inferida.
+
+```bash
+curl --get --data-urlencode 'doi=10.1038/s41467-022-28959-5' \
+  http://localhost:8080/api/catalogo/obras/por-doi
+```
+
+Com a chave compartilhada da API habilitada, a consulta também exige `X-Atlas-Chave`. Uma chave opcional do provedor pode ser configurada em `OPENALEX_API_KEY`, somente no servidor. O conector limita as consultas por instância e tem prazo HTTP padrão de 5 segundos, incluindo o corpo da resposta. Configuração, tratamento de erros, verificações reais e limites estão em [docs/openalex.md](docs/openalex.md).
 
 ## Upload mínimo
 

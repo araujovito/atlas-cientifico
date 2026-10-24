@@ -31,3 +31,13 @@ Registro curto de decisões de projeto: o que foi escolhido, o porquê e o que f
 ## O que nada disso mede
 
 Desempenho, uso de memória e precisão de extração **não foram medidos**. Os números de limite (500 páginas, 500 itens por página da listagem, 200 por padrão) são escolhas razoáveis, não resultado de medição.
+
+## Início da entrega 2 em 2026-10-24 (implementação, por delegação do autor)
+
+| Decisão | Motivo | Limite | Commit |
+|---|---|---|---|
+| Começar por consulta de metadados por DOI, sem persistir | Valida o contrato da fonte e entrega um resultado utilizável antes de definir fusão de metadados de fontes diferentes. O resultado mantém os identificadores para a próxima etapa. | Deduplicação do catálogo, busca por tema/autor e coleções continuam planejadas. | `5693848`, `9ff978b` |
+| Prazo HTTP padrão de 5 s, intervalo mínimo de 200 ms por instância e espera em 429 | Evita prender a requisição indefinidamente ou repetir chamadas contra um limite do provedor. O teste de corpo atrasado refutou a suposição de que o timeout padrão da requisição cobria tudo. | Valores preventivos, sem medição; o controle de taxa é local à instância. | `5693848` |
+| Limpar o contexto anterior ao trocar PDF e bloquear troca durante gravação | O formulário e o texto antigos podiam continuar visíveis após falha no segundo envio. Isso dificultava conferir qual documento estava ativo. | Coberto em Chromium; outros navegadores não foram verificados. | `5fe2575` |
+
+Fontes oficiais e evidências das chamadas reais estão em [openalex.md](openalex.md). Esses testes não medem precisão dos metadados nem desempenho.
