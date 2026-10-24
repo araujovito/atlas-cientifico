@@ -28,6 +28,9 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import dev.atlas.fontes.openalex.OpenAlexClient;
+import dev.atlas.catalogo.ObraEncontrada;
 
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -42,6 +45,7 @@ class InterfaceNavegadorTest {
 	private Page pagina;
 	@TempDir Path arquivos;
 	@LocalServerPort int porta;
+	@MockitoBean OpenAlexClient fonte;
 
 	@DynamicPropertySource
 	static void propriedades(DynamicPropertyRegistry registry) {
@@ -162,6 +166,8 @@ class InterfaceNavegadorTest {
 
 	@Test
 	void buscaDoiMostraTextoExternoSemHtmlELimpaResultadoAoFalhar() {
+		org.mockito.Mockito.when(fonte.buscarPorDoi("10.1234/artigo")).thenReturn(new ObraEncontrada(
+				"OPENALEX","https://openalex.org/W123","10.1234/artigo","Título conferido no servidor",2022,java.util.List.of("Uma autora")));
 		String consulta = "**/api/catalogo/obras/por-doi?**";
 		pagina.route(consulta, route -> route.fulfill(new Route.FulfillOptions()
 				.setContentType("application/json").setBody("""
@@ -177,6 +183,18 @@ class InterfaceNavegadorTest {
 		assertThat(pagina.locator("#work-year")).hasText("Ano: 2022");
 		assertThat(pagina.locator("#work-openalex")).hasAttribute("href", "https://openalex.org/W123");
 		assertThat(pagina.locator("#work-doi")).hasAttribute("href", "https://doi.org/10.1234%2Fartigo");
+		pagina.locator("#save-work").click();
+		assertThat(pagina.locator("#library-list h3")).hasText("Título conferido no servidor");
+		pagina.locator("#collection-name").fill("Minha coleção de teste");
+		pagina.locator("#collection-form button").click();
+		assertThat(pagina.locator("#library-status")).hasText("Coleção criada.");
+		pagina.locator("#library-list").getByText("Adicionar à coleção").click();
+		assertThat(pagina.locator("#library-status")).hasText("Obra adicionada à coleção.");
+		pagina.reload();
+		pagina.locator("#library-refresh").click();
+		assertThat(pagina.locator("#collection-select option")).hasText("Minha coleção de teste");
+		pagina.locator("#collection-show").click();
+		assertThat(pagina.locator("#library-list h3")).hasText("Título conferido no servidor");
 
 		pagina.unroute(consulta);
 		pagina.route(consulta, route -> route.fulfill(new Route.FulfillOptions().setStatus(404)

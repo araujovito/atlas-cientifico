@@ -56,8 +56,36 @@
       <p id="work-year"></p>
       <p><a id="work-doi" target="_blank" rel="noopener noreferrer"></a></p>
       <p><a id="work-openalex" target="_blank" rel="noopener noreferrer">Ver no OpenAlex</a></p>
+      <button id="save-work" type="button">Salvar no catálogo</button>
       <p class="muted">Fonte dos metadados: OpenAlex (CC0). A licença dos metadados não determina a permissão de uso do texto completo.</p>
     </article>
+  </section>
+
+  <section>
+    <h2>Descobrir artigos</h2>
+    <p class="muted">Busca no OpenAlex, limitada a obras com DOI. Nomes iguais podem identificar autores diferentes; selecione a pessoa antes de filtrar.</p>
+    <form id="author-form"><label for="author-name">Procurar autor pelo nome</label><input id="author-name" maxlength="100" required minlength="2"><button type="submit">Procurar autores</button></form>
+    <label for="author-filter">Autor escolhido</label><select id="author-filter"><option value="">Todos os autores</option></select>
+    <form id="discovery-form">
+      <label for="theme">Tema</label><input id="theme" maxlength="200">
+      <label for="search-year">Ano (opcional)</label><input id="search-year" type="number" min="1500" max="2200">
+      <button type="submit">Buscar por filtros</button>
+    </form>
+    <p id="discovery-page"></p><div id="discovery-results"></div>
+    <button id="search-previous" type="button" disabled>Resultados anteriores</button><button id="search-next" type="button" disabled>Próximos resultados</button>
+  </section>
+
+  <section>
+    <h2>Catálogo e coleções</h2>
+    <p id="library-status" role="status" aria-live="polite"></p>
+    <button id="library-refresh" type="button">Atualizar catálogo</button>
+    <form id="collection-form"><label for="collection-name">Nome da nova coleção</label><input id="collection-name" maxlength="200" required><button type="submit">Criar coleção</button></form>
+    <label for="collection-select">Coleção</label><select id="collection-select"></select>
+    <button id="collection-show" type="button">Ver obras da coleção</button>
+    <p id="active-work">O próximo PDF será enviado sem vínculo com uma obra.</p>
+    <button id="unlink-work" type="button">Enviar próximo PDF sem vínculo</button>
+    <div id="library-list"></div>
+    <button id="library-previous" type="button" disabled>Obras anteriores</button><button id="library-next" type="button" disabled>Próximas obras</button>
   </section>
 
   <section>
@@ -120,6 +148,8 @@
   let documentId;
   let executionId;
   let pages = [];
+  let workToSave;
+  let activeWorkId;
 
   function showStatus(message, error = false) {
     statusBox.textContent = message;
@@ -140,7 +170,7 @@
       try { detail = (await response.json()).detail || detail; } catch { /* usa a mensagem padrão */ }
       throw new Error(detail);
     }
-    return response.json();
+    return response.status === 204 ? null : response.json();
   }
 
   document.querySelector('#doi-form').addEventListener('submit', async event => {
@@ -150,12 +180,14 @@
     const status = document.querySelector('#catalog-status');
     const result = document.querySelector('#catalog-result');
     button.disabled = true;
+    workToSave = undefined;
     result.hidden = true;
     status.className = '';
     status.textContent = 'Consultando o OpenAlex…';
     try {
       const query = new URLSearchParams({ doi: document.querySelector('#doi').value.trim() });
       const work = await request(`/api/catalogo/obras/por-doi?${query}`);
+      workToSave = work;
       document.querySelector('#work-title').textContent = work.titulo || 'Título não informado';
       document.querySelector('#work-authors').textContent = work.autores.length ? work.autores.join('; ') : 'Autores não informados';
       document.querySelector('#work-year').textContent = work.ano != null ? `Ano: ${work.ano}` : 'Ano não informado';
@@ -179,6 +211,7 @@
     const button = document.querySelector('#upload-button');
     if (button.disabled) return;
     button.disabled = true;
+    const chosenWork = activeWorkId;
     resetDocument();
     showStatus('Enviando PDF e extraindo o texto…');
     try {
@@ -188,6 +221,7 @@
       body.append('autorizacaoConfirmada', 'true');
       const uploaded = await request('/api/documentos', { method: 'POST', body });
       documentId = uploaded.id;
+      if (chosenWork) await request(`/api/catalogo/obras/${chosenWork}/documentos/${documentId}`, { method: 'PUT' });
       const execution = await request(`/api/documentos/${documentId}/extracoes`, { method: 'POST' });
       executionId = execution.execucaoId;
       const precisaOcr = execution.estado === 'PRECISA_OCR';
@@ -351,5 +385,6 @@
     if (measures.length === 0) list.textContent = 'Ainda não há medidas nesta extração.';
   }
 </script>
+<script src="/catalogo.js"></script>
 </body>
 </html>
