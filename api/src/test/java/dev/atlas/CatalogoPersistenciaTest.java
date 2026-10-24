@@ -24,7 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.ObjectMapper;
 
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class,OperadorTesteConfiguration.class})
 @SpringBootTest
 @AutoConfigureMockMvc
 class CatalogoPersistenciaTest {

@@ -16,7 +16,9 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(CatalogoController.class)
+@WebMvcTest(controllers=CatalogoController.class,excludeFilters=@org.springframework.context.annotation.ComponentScan.Filter(
+        type=org.springframework.context.annotation.FilterType.ASSIGNABLE_TYPE,
+        classes={dev.atlas.acesso.FiltroSessao.class,dev.atlas.seguranca.FiltroChaveApi.class,dev.atlas.acesso.ConfiguracaoAcessoWeb.class}))
 class CatalogoControllerTest {
 	@Autowired MockMvc mvc;
 	@MockitoBean OpenAlexClient openAlex;

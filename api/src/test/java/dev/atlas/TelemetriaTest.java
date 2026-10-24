@@ -51,7 +51,7 @@ class TelemetriaTest {
             doc.save(out); bytes=out.toByteArray();
         }
         String titulo="TITULO-"+java.util.UUID.randomUUID();
-        var recebido=upload.receber(new org.springframework.mock.web.MockMultipartFile("arquivo","t.pdf","application/pdf",bytes),true,titulo);
+        var recebido=upload.receber(new org.springframework.mock.web.MockMultipartFile("arquivo","t.pdf","application/pdf",bytes),true,titulo,ContasTeste.LEGADO);
         fila.agendar(recebido.id());
         // Caminho real: reserva, extração em subprocesso, conclusão e o span que o trabalhador abre.
         assertThat(worker.executarUma()).isTrue();

@@ -13,7 +13,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/comparacoes")
 public class ComparacaoController {
     private final RevisaoService revisoes;
-    public ComparacaoController(RevisaoService revisoes) { this.revisoes=revisoes; }
+    private final dev.atlas.acesso.AutorizacaoRecursos acesso;
+    private final dev.atlas.acesso.UsuarioAtual usuario;
+    public ComparacaoController(RevisaoService revisoes,dev.atlas.acesso.AutorizacaoRecursos acesso,dev.atlas.acesso.UsuarioAtual usuario) { this.revisoes=revisoes;this.acesso=acesso;this.usuario=usuario; }
     public record Linha(RevisaoService.Atual registro,NormalizadorUnidades.Valor normalizado) {}
     public record Comparacao(boolean podeAlinharNumericamente,List<String> motivos,List<Linha> linhas) {}
     private static final Set<String> CONDICOES=Set.of("taxa_corrente","carga_catodo","eletrolito","temperatura","janela_tensao");
@@ -22,6 +24,7 @@ public class ComparacaoController {
     public Comparacao comparar(@RequestParam List<UUID> medidas) {
         if(medidas.size()<2 || medidas.size()>20 || medidas.stream().distinct().count()!=medidas.size())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Escolha entre 2 e 20 medidas distintas.");
+        medidas.forEach(id->acesso.exigirMedida(id,usuario.id()));
         var linhas=medidas.stream().map(revisoes::obter).map(r -> new Linha(r,
                 NormalizadorUnidades.normalizar(r.atual().medida().valorOriginal(),r.atual().medida().unidadeOriginal()).orElse(null))).toList();
         var motivos=new ArrayList<String>(); var primeira=linhas.getFirst(); var base=primeira.registro().atual().medida();

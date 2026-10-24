@@ -25,14 +25,14 @@ class EsquemaTest {
 			UUID obra = jdbc.sql("INSERT INTO obra (titulo) VALUES ('Artigo de teste') RETURNING id")
 					.query(UUID.class).single();
 			UUID versao = jdbc.sql("""
-					INSERT INTO versao_documento (obra_id, origem, sha256, tamanho_bytes,
+					INSERT INTO versao_documento (dono_id, obra_id, origem, sha256, tamanho_bytes,
 					                              chave_armazenamento, autorizacao_declarada, autorizacao_confirmada_em)
-					VALUES (:o, 'UPLOAD', :h, 10, 'k', true, now()) RETURNING id
+					VALUES ('00000000-0000-0000-0000-000000000001', :o, 'UPLOAD', :h, 10, 'k', true, now()) RETURNING id
 					""").param("o", obra).param("h", hashAleatorio()).query(UUID.class).single();
 			UUID exec = jdbc.sql("""
-					INSERT INTO execucao_processamento (versao_documento_id, versao_processador,
+					INSERT INTO execucao_processamento (usuario_id, versao_documento_id, versao_processador,
 					                                    estado, chave_idempotencia)
-					VALUES (:v, '0', 'PENDENTE', :c) RETURNING id
+					VALUES ('00000000-0000-0000-0000-000000000001', :v, '0', 'PENDENTE', :c) RETURNING id
 					""").param("v", versao).param("c", UUID.randomUUID().toString()).query(UUID.class).single();
 			UUID estudo = jdbc.sql("INSERT INTO estudo (versao_documento_id, execucao_id) VALUES (:v, :e) RETURNING id")
 					.param("v", versao).param("e", exec).query(UUID.class).single();
@@ -51,8 +51,8 @@ class EsquemaTest {
 
 		assertThatThrownBy(() -> tx.executeWithoutResult(s ->
 				jdbc.sql("""
-						INSERT INTO medida (experimento_id, metrica, valor_original, unidade_original, estado)
-						VALUES (:e, 'capacidade', '160', 'mAh/g', 'REPORTADO')
+						INSERT INTO medida (usuario_id, experimento_id, metrica, valor_original, unidade_original, estado)
+						VALUES ('00000000-0000-0000-0000-000000000001', :e, 'capacidade', '160', 'mAh/g', 'REPORTADO')
 						""").param("e", experimento).update()))
 				.isInstanceOf(DataIntegrityViolationException.class)
 				.hasMessageContaining("sem evidência");
@@ -64,8 +64,8 @@ class EsquemaTest {
 
 		tx.executeWithoutResult(s -> {
 			UUID medida = jdbc.sql("""
-					INSERT INTO medida (experimento_id, metrica, valor_original, unidade_original, estado)
-					VALUES (:e, 'capacidade', '160', 'mAh/g', 'REPORTADO') RETURNING id
+					INSERT INTO medida (usuario_id, experimento_id, metrica, valor_original, unidade_original, estado)
+					VALUES ('00000000-0000-0000-0000-000000000001', :e, 'capacidade', '160', 'mAh/g', 'REPORTADO') RETURNING id
 					""").param("e", experimento).query(UUID.class).single();
 			jdbc.sql("INSERT INTO evidencia (medida_id, pagina, trecho) VALUES (:m, 4, 'delivered 160 mAh/g')")
 					.param("m", medida).update();
@@ -80,8 +80,8 @@ class EsquemaTest {
 		UUID experimento = novaExperimento();
 		UUID medida = tx.execute(s -> {
 			UUID id = jdbc.sql("""
-					INSERT INTO medida (experimento_id, metrica, valor_original, estado)
-					VALUES (:e, 'capacidade', '160', 'REPORTADO') RETURNING id
+					INSERT INTO medida (usuario_id, experimento_id, metrica, valor_original, estado)
+					VALUES ('00000000-0000-0000-0000-000000000001', :e, 'capacidade', '160', 'REPORTADO') RETURNING id
 					""").param("e", experimento).query(UUID.class).single();
 			jdbc.sql("INSERT INTO evidencia (medida_id, pagina, trecho) VALUES (:m, 1, '160 mAh/g')")
 					.param("m", id).update();
@@ -100,8 +100,8 @@ class EsquemaTest {
 		UUID experimento = novaExperimento();
 		UUID medida = tx.execute(s -> {
 			UUID id = jdbc.sql("""
-					INSERT INTO medida (experimento_id, metrica, valor_original, estado)
-					VALUES (:e, 'capacidade', '160', 'REPORTADO') RETURNING id
+					INSERT INTO medida (usuario_id, experimento_id, metrica, valor_original, estado)
+					VALUES ('00000000-0000-0000-0000-000000000001', :e, 'capacidade', '160', 'REPORTADO') RETURNING id
 					""").param("e", experimento).query(UUID.class).single();
 			jdbc.sql("INSERT INTO evidencia (medida_id, pagina, trecho) VALUES (:m, 1, '160 mAh/g')")
 					.param("m", id).update();
@@ -119,9 +119,9 @@ class EsquemaTest {
 		UUID obra = jdbc.sql("INSERT INTO obra (titulo) VALUES ('Com obra') RETURNING id").query(UUID.class).single();
 
 		assertThatThrownBy(() -> jdbc.sql("""
-				INSERT INTO versao_documento (obra_id, origem, sha256, tamanho_bytes,
+				INSERT INTO versao_documento (dono_id, obra_id, origem, sha256, tamanho_bytes,
 				                              chave_armazenamento, autorizacao_declarada)
-				VALUES (:o, 'UPLOAD', :h, 10, 'k', true)
+				VALUES ('00000000-0000-0000-0000-000000000001', :o, 'UPLOAD', :h, 10, 'k', true)
 				""").param("o", obra).param("h", hashAleatorio()).update())
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
@@ -131,8 +131,8 @@ class EsquemaTest {
 		UUID experimento = novaExperimento();
 		UUID medida = tx.execute(s -> {
 			UUID id = jdbc.sql("""
-					INSERT INTO medida (experimento_id, metrica, valor_original, estado)
-					VALUES (:e, 'capacidade', '160', 'REPORTADO') RETURNING id
+					INSERT INTO medida (usuario_id, experimento_id, metrica, valor_original, estado)
+					VALUES ('00000000-0000-0000-0000-000000000001', :e, 'capacidade', '160', 'REPORTADO') RETURNING id
 					""").param("e", experimento).query(UUID.class).single();
 			jdbc.sql("INSERT INTO evidencia (medida_id, pagina, trecho) VALUES (:m, 1, '160 mAh/g')")
 					.param("m", id).update();
@@ -149,12 +149,12 @@ class EsquemaTest {
 		UUID experimento = novaExperimento();
 
 		tx.executeWithoutResult(s -> jdbc.sql(
-				"INSERT INTO medida (experimento_id, metrica, estado) VALUES (:e, 'incerteza', 'AUSENTE')")
+				"INSERT INTO medida (usuario_id, experimento_id, metrica, estado) VALUES ('00000000-0000-0000-0000-000000000001', :e, 'incerteza', 'AUSENTE')")
 				.param("e", experimento).update());
 
 		assertThatThrownBy(() -> tx.executeWithoutResult(s -> jdbc.sql("""
-				INSERT INTO medida (experimento_id, metrica, valor_original, estado)
-				VALUES (:e, 'incerteza', '3', 'AUSENTE')
+				INSERT INTO medida (usuario_id, experimento_id, metrica, valor_original, estado)
+				VALUES ('00000000-0000-0000-0000-000000000001', :e, 'incerteza', '3', 'AUSENTE')
 				""").param("e", experimento).update()))
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
@@ -164,8 +164,8 @@ class EsquemaTest {
 		UUID experimento = novaExperimento();
 
 		assertThatThrownBy(() -> tx.executeWithoutResult(s -> jdbc.sql("""
-				INSERT INTO medida (experimento_id, metrica, valor_original, valor_normalizado, estado)
-				VALUES (:e, 'capacidade', '160', 160, 'PENDENTE_REVISAO')
+				INSERT INTO medida (usuario_id, experimento_id, metrica, valor_original, valor_normalizado, estado)
+				VALUES ('00000000-0000-0000-0000-000000000001', :e, 'capacidade', '160', 160, 'PENDENTE_REVISAO')
 				""").param("e", experimento).update()))
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
@@ -175,9 +175,9 @@ class EsquemaTest {
 		String hash = hashAleatorio();
 		UUID obra = jdbc.sql("INSERT INTO obra (titulo) VALUES ('Outro') RETURNING id").query(UUID.class).single();
 		String insert = """
-				INSERT INTO versao_documento (obra_id, origem, sha256, tamanho_bytes,
+				INSERT INTO versao_documento (dono_id, obra_id, origem, sha256, tamanho_bytes,
 				                              chave_armazenamento, autorizacao_declarada, autorizacao_confirmada_em)
-				VALUES (:o, 'UPLOAD', :h, 10, 'k', true, now())
+				VALUES ('00000000-0000-0000-0000-000000000001', :o, 'UPLOAD', :h, 10, 'k', true, now())
 				""";
 		jdbc.sql(insert).param("o", obra).param("h", hash).update();
 
@@ -191,9 +191,9 @@ class EsquemaTest {
 				.query(UUID.class).single();
 
 		assertThatThrownBy(() -> jdbc.sql("""
-				INSERT INTO versao_documento (obra_id, origem, sha256, tamanho_bytes,
+				INSERT INTO versao_documento (dono_id, obra_id, origem, sha256, tamanho_bytes,
 				                              chave_armazenamento, autorizacao_declarada, autorizacao_confirmada_em)
-				VALUES (:o, 'UPLOAD', :h, 10, 'k', false, now())
+				VALUES ('00000000-0000-0000-0000-000000000001', :o, 'UPLOAD', :h, 10, 'k', false, now())
 				""").param("o", obra).param("h", hashAleatorio()).update())
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}

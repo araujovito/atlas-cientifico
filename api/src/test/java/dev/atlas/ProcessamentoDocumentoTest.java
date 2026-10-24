@@ -29,7 +29,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class,OperadorTesteConfiguration.class})
 @SpringBootTest(properties = {
 		"atlas.documentos.diretorio=${java.io.tmpdir}/atlas-processamento-test",
 		"atlas.documentos.paginas-maximas=3"

@@ -24,7 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class,OperadorTesteConfiguration.class})
 @SpringBootTest(properties = {
 		"atlas.documentos.diretorio=${java.io.tmpdir}/atlas-upload-test",
 		"atlas.documentos.tamanho-maximo-bytes=128"
@@ -110,7 +110,7 @@ class UploadDocumentoTest {
 				var largada = new CyclicBarrier(2);
 				Callable<DocumentoUpload> envio = () -> {
 					largada.await();
-					return service.receber(pdf(corpo), true, marcador);
+					return service.receber(pdf(corpo), true, marcador,ContasTeste.LEGADO);
 				};
 				var primeiro = pool.submit(envio);
 				var segundo = pool.submit(envio);

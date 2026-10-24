@@ -45,16 +45,16 @@ public class ProcessadorDocumentoService {
 
 	public ResultadoProcessamentoDocumento processar(UUID documentoId) {
 		DocumentoArmazenado documento = jdbc.sql("""
-				SELECT id, sha256, chave_armazenamento
+				SELECT id, sha256, chave_armazenamento, dono_id
 				FROM versao_documento
 				WHERE id = :id
 				""").param("id", documentoId)
 			.query((rs, row) -> new DocumentoArmazenado(
-					rs.getObject("id", UUID.class), rs.getString("sha256"), rs.getString("chave_armazenamento")))
+					rs.getObject("id", UUID.class), rs.getString("sha256"), rs.getString("chave_armazenamento"),rs.getObject("dono_id",UUID.class)))
 			.optional()
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Documento não encontrado."));
 
-		String chave = documento.sha256() + ":" + VERSAO_PROCESSADOR;
+		String chave = documento.id() + ":" + documento.sha256() + ":" + VERSAO_PROCESSADOR;
 		var existente = buscarExecucao(documento.id(), chave);
 		if (existente.isPresent()) {
 			return existente.get();
@@ -90,12 +90,13 @@ public class ProcessadorDocumentoService {
 			var inserida = jdbc.sql("""
 					INSERT INTO execucao_processamento
 					    (versao_documento_id, versao_processador, estado, chave_idempotencia,
-					     iniciado_em, finalizado_em)
-					VALUES (:documento, :versao, :estado, :chave, :agora, :agora)
+					     iniciado_em, finalizado_em, usuario_id)
+					VALUES (:documento, :versao, :estado, :chave, :agora, :agora, :usuario)
 					ON CONFLICT (chave_idempotencia) DO NOTHING
 					RETURNING id
 					""")
 				.param("documento", documento.id())
+				.param("usuario",documento.dono())
 				.param("versao", VERSAO_PROCESSADOR)
 				.param("estado", estado)
 				.param("chave", chave)
@@ -200,13 +201,13 @@ public class ProcessadorDocumentoService {
 			.param("estudo", estudoId).param("objeto", medida.objeto().trim())
 			.param("condicoes", condicoesJson).query(UUID.class).single();
 		UUID medidaId = jdbc.sql("""
-				INSERT INTO medida (experimento_id, metrica, valor_original, unidade_original, estado)
-				VALUES (:experimento, :metrica, :valor, :unidade, :estado)
+				INSERT INTO medida (experimento_id, metrica, valor_original, unidade_original, estado,usuario_id)
+				VALUES (:experimento, :metrica, :valor, :unidade, :estado,(SELECT dono_id FROM versao_documento WHERE id=:documento))
 				ON CONFLICT (experimento_id, metrica, estado, (COALESCE(valor_original, '')), (COALESCE(unidade_original, '')))
 				DO UPDATE SET metrica = EXCLUDED.metrica
 				RETURNING id
 				""")
-			.param("experimento", experimentoId).param("metrica", medida.metrica().trim())
+			.param("experimento", experimentoId).param("metrica", medida.metrica().trim()).param("documento",documentoId)
 			.param("valor", medida.valorOriginal()).param("unidade", medida.unidadeOriginal())
 			.param("estado", medida.estado()).query(UUID.class).single();
 		UUID evidenciaId = null;
@@ -374,6 +375,6 @@ public class ProcessadorDocumentoService {
 		return caminho;
 	}
 
-	private record DocumentoArmazenado(UUID id, String sha256, String chaveArmazenamento) {
+	private record DocumentoArmazenado(UUID id, String sha256, String chaveArmazenamento,UUID dono) {
 	}
 }

@@ -30,8 +30,8 @@ class InterrupcaoProcessamentoTest {
         Path arquivo=diretorio.resolve(hash+".pdf"); Files.writeString(arquivo,"%PDF-sintetico");
         try {
             UUID id=jdbc.sql("""
-                    INSERT INTO versao_documento(origem,sha256,chave_armazenamento,tamanho_bytes,autorizacao_declarada,autorizacao_confirmada_em)
-                    VALUES ('UPLOAD',:hash,:chave,14,true,now()) RETURNING id
+                    INSERT INTO versao_documento(dono_id, origem,sha256,chave_armazenamento,tamanho_bytes,autorizacao_declarada,autorizacao_confirmada_em)
+                    VALUES ('00000000-0000-0000-0000-000000000001', 'UPLOAD',:hash,:chave,14,true,now()) RETURNING id
                     """).param("hash",hash).param("chave",hash+".pdf").query(UUID.class).single();
             when(extrator.extrair(any(),anyInt())).thenThrow(new InterruptedIOException("Interrompido"));
             assertThatThrownBy(() -> processador.processar(id)).isInstanceOfSatisfying(ResponseStatusException.class,

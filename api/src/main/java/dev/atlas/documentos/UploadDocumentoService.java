@@ -32,7 +32,8 @@ public class UploadDocumentoService {
 	// Sem @Transactional: a leitura do multipart, o hash e a cópia para o disco não usam o banco,
 	// e uma transação aberta nesse intervalo prenderia uma conexão do pool durante o I/O.
 	// O único comando que precisa ser atômico é o INSERT ... ON CONFLICT.
-	public DocumentoUpload receber(MultipartFile arquivo, boolean autorizacaoConfirmada, String titulo) {
+	public DocumentoUpload receber(MultipartFile arquivo, boolean autorizacaoConfirmada, String titulo, UUID dono) {
+		java.util.Objects.requireNonNull(dono,"Dono obrigatório.");
 		if (!autorizacaoConfirmada) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Confirme que tem autorização para processar este PDF.");
 		}
@@ -46,7 +47,7 @@ public class UploadDocumentoService {
 
 		String tituloSeguro = titulo == null || titulo.isBlank() ? null : titulo.trim();
 		String hash = sha256(arquivo);
-		var existente = buscarPorHash(hash);
+		var existente = buscarPorHash(hash,dono);
 		if (existente.isPresent()) {
 			return existente.get();
 		}
@@ -78,22 +79,22 @@ public class UploadDocumentoService {
 		Instant agora = Instant.now();
 		var inserido = jdbc.sql("""
 				INSERT INTO versao_documento (origem, sha256, tamanho_bytes, chave_armazenamento,
-				                             autorizacao_declarada, autorizacao_confirmada_em, titulo_declarado)
-				VALUES ('UPLOAD', :hash, :tamanho, :chave, true, :confirmado, :titulo)
-				ON CONFLICT (sha256) DO NOTHING
+				                             autorizacao_declarada, autorizacao_confirmada_em, titulo_declarado, dono_id)
+				VALUES ('UPLOAD', :hash, :tamanho, :chave, true, :confirmado, :titulo, :dono)
+				ON CONFLICT (dono_id,sha256) DO NOTHING
 				RETURNING id
 				""").param("hash", hash).param("tamanho", arquivo.getSize()).param("chave", destino.getFileName().toString())
-				.param("confirmado", java.sql.Timestamp.from(agora)).param("titulo", tituloSeguro)
+				.param("confirmado", java.sql.Timestamp.from(agora)).param("titulo", tituloSeguro).param("dono",dono)
 				.query(UUID.class).optional();
 		if (inserido.isPresent()) {
 			return new DocumentoUpload(inserido.get(), hash, arquivo.getSize(), false, agora);
 		}
-		return buscarPorHash(hash).orElseThrow();
+		return buscarPorHash(hash,dono).orElseThrow();
 	}
 
-	private java.util.Optional<DocumentoUpload> buscarPorHash(String hash) {
-		return jdbc.sql("SELECT id, tamanho_bytes, coletado_em FROM versao_documento WHERE sha256 = :hash")
-				.param("hash", hash)
+	private java.util.Optional<DocumentoUpload> buscarPorHash(String hash,UUID dono) {
+		return jdbc.sql("SELECT id, tamanho_bytes, coletado_em FROM versao_documento WHERE sha256 = :hash AND dono_id=:dono")
+				.param("hash", hash).param("dono",dono)
 				.query((rs, row) -> new DocumentoUpload(rs.getObject("id", UUID.class), hash,
 						rs.getLong("tamanho_bytes"), true, rs.getTimestamp("coletado_em").toInstant()))
 				.optional();

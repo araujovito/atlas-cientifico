@@ -14,9 +14,11 @@ import org.springframework.web.server.ResponseStatusException;
 public class UploadDocumentoController {
 
 	private final UploadDocumentoService service;
+	private final dev.atlas.acesso.UsuarioAtual usuario;
 
-	public UploadDocumentoController(UploadDocumentoService service) {
+	public UploadDocumentoController(UploadDocumentoService service,dev.atlas.acesso.UsuarioAtual usuario) {
 		this.service = service;
+		this.usuario = usuario;
 	}
 
 	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -27,6 +29,6 @@ public class UploadDocumentoController {
 		if (autorizacaoConfirmada == null) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Confirme que tem autorização para processar este PDF.");
 		}
-		return service.receber(arquivo, autorizacaoConfirmada, titulo);
+		return service.receber(arquivo, autorizacaoConfirmada, titulo,usuario.id());
 	}
 }

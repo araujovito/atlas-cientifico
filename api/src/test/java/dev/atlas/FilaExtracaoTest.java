@@ -22,8 +22,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
 
-@Import(TestcontainersConfiguration.class)
-@SpringBootTest(properties="atlas.fila.ativa=false")
+@Import({TestcontainersConfiguration.class,OperadorTesteConfiguration.class})
+@SpringBootTest(properties={"atlas.fila.ativa=false","atlas.seguranca.chave-api=teste-operacao"})
 @AutoConfigureMockMvc
 class FilaExtracaoTest {
     @Autowired FilaExtracaoService fila;
@@ -99,7 +99,7 @@ class FilaExtracaoTest {
         assertThat(fila.eventos(tarefa.id())).hasSize(eventos+1);
         verify(processador,times(3)).processar(doc);
         assertThat(metrics.get("atlas.pdf.tentativa").tag("resultado","erro_temporario").timer().count()).isGreaterThanOrEqualTo(3);
-        mvc.perform(get("/api/operacao/metricas")).andExpect(status().isOk())
+        mvc.perform(get("/api/operacao/metricas").header("X-Atlas-Chave","teste-operacao")).andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.resultado == 'erro_temporario')].tentativas").isNotEmpty());
     }
 
@@ -134,14 +134,14 @@ class FilaExtracaoTest {
     private UUID documento() {
         String hash=(UUID.randomUUID().toString()+UUID.randomUUID()).replace("-","");
         return jdbc.sql("""
-                INSERT INTO versao_documento(origem,sha256,tamanho_bytes,chave_armazenamento,autorizacao_declarada,autorizacao_confirmada_em)
-                VALUES ('UPLOAD',:hash,10,'teste.pdf',true,now()) RETURNING id
+                INSERT INTO versao_documento(dono_id, origem,sha256,tamanho_bytes,chave_armazenamento,autorizacao_declarada,autorizacao_confirmada_em)
+                VALUES ('00000000-0000-0000-0000-000000000001', 'UPLOAD',:hash,10,'teste.pdf',true,now()) RETURNING id
                 """).param("hash",hash).query(UUID.class).single();
     }
     private ResultadoProcessamentoDocumento resultado(UUID doc) {
         UUID exec=jdbc.sql("""
-                INSERT INTO execucao_processamento(versao_documento_id,versao_processador,estado,chave_idempotencia,finalizado_em)
-                VALUES (:doc,'teste','CONCLUIDO',:chave,now()) RETURNING id
+                INSERT INTO execucao_processamento(usuario_id, versao_documento_id,versao_processador,estado,chave_idempotencia,finalizado_em)
+                VALUES ('00000000-0000-0000-0000-000000000001', :doc,'teste','CONCLUIDO',:chave,now()) RETURNING id
                 """).param("doc",doc).param("chave",UUID.randomUUID().toString()).query(UUID.class).single();
         return new ResultadoProcessamentoDocumento(exec,doc,"teste","CONCLUIDO",1,false);
     }

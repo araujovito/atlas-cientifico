@@ -57,10 +57,10 @@ public class RevisaoService {
             var evidencias="AUSENTE".equals(v.medida().estado()) ? List.<Evidencia>of() : List.of(new Evidencia(v.medida().pagina(),v.medida().trecho(),v.inicio(),v.fim()));
             var correcao=new Snapshot(v.medida(),evidencias);
             jdbc.sql("""
-                    INSERT INTO revisao_medida(medida_id,versao,autor_declarado,motivo,anterior,correcao)
-                    VALUES (:id,:v,:a,:m,CAST(:ant AS jsonb),CAST(:nova AS jsonb))
+                    INSERT INTO revisao_medida(medida_id,versao,autor_declarado,motivo,anterior,correcao,usuario_id)
+                    VALUES (:id,:v,:a,:m,CAST(:ant AS jsonb),CAST(:nova AS jsonb),(SELECT dono_id FROM versao_documento WHERE id=:doc))
                     """).param("id",medida).param("v",antes.versao()+1).param("a",pedido.autorDeclarado().strip()).param("m",pedido.motivo().strip())
-                    .param("ant",mapper.writeValueAsString(antes.atual())).param("nova",mapper.writeValueAsString(correcao)).update();
+                    .param("doc",antes.documentoId()).param("ant",mapper.writeValueAsString(antes.atual())).param("nova",mapper.writeValueAsString(correcao)).update();
             return obter(medida);
         });
     }

@@ -33,7 +33,7 @@ class FilaRecuperacaoRealTest {
             }
             doc.save(out); bytes=out.toByteArray();
         }
-        var recebido=upload.receber(new MockMultipartFile("arquivo","teste.pdf","application/pdf",bytes),true,null);
+        var recebido=upload.receber(new MockMultipartFile("arquivo","teste.pdf","application/pdf",bytes),true,null,ContasTeste.LEGADO);
         var tarefa=fila.agendar(recebido.id()); fila.reservar().orElseThrow();
         var primeira=processador.processar(recebido.id()); // trabalho concluído, mas trabalhador interrompido antes do ack
         jdbc.sql("UPDATE tarefa_extracao SET reservado_ate=now()-interval '1 second' WHERE id=:id").param("id",tarefa.id()).update();

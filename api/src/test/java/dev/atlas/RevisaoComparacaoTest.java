@@ -18,6 +18,11 @@ import org.springframework.web.server.ResponseStatusException;
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest(properties="atlas.fila.ativa=false")
 class RevisaoComparacaoTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean dev.atlas.acesso.UsuarioAtual usuario;
+    @org.junit.jupiter.api.BeforeEach void identidadeDoFixture(){
+        org.mockito.Mockito.when(usuario.id()).thenReturn(ContasTeste.LEGADO);
+        org.mockito.Mockito.when(usuario.obter()).thenReturn(new dev.atlas.acesso.SessaoService.Usuario(ContasTeste.LEGADO,"operador-legado@atlas.invalid"));
+    }
     @Autowired JdbcClient jdbc;
     @Autowired ProcessadorDocumentoService processador;
     @Autowired RevisaoService revisoes;
@@ -123,12 +128,12 @@ class RevisaoComparacaoTest {
 
     private UUID registrar(String valor,String unidade,Map<String,Object> condicoes) {
         UUID doc=jdbc.sql("""
-                INSERT INTO versao_documento(origem,sha256,tamanho_bytes,chave_armazenamento,autorizacao_declarada,autorizacao_confirmada_em)
-                VALUES ('UPLOAD',:h,10,'fixture.pdf',true,now()) RETURNING id
+                INSERT INTO versao_documento(dono_id, origem,sha256,tamanho_bytes,chave_armazenamento,autorizacao_declarada,autorizacao_confirmada_em)
+                VALUES ('00000000-0000-0000-0000-000000000001', 'UPLOAD',:h,10,'fixture.pdf',true,now()) RETURNING id
                 """).param("h",(UUID.randomUUID().toString()+UUID.randomUUID()).replace("-","")).query(UUID.class).single();
         UUID exec=jdbc.sql("""
-                INSERT INTO execucao_processamento(versao_documento_id,versao_processador,estado,chave_idempotencia,finalizado_em)
-                VALUES (:d,'fixture','CONCLUIDO',:c,now()) RETURNING id
+                INSERT INTO execucao_processamento(usuario_id, versao_documento_id,versao_processador,estado,chave_idempotencia,finalizado_em)
+                VALUES ('00000000-0000-0000-0000-000000000001', :d,'fixture','CONCLUIDO',:c,now()) RETURNING id
                 """).param("d",doc).param("c",UUID.randomUUID().toString()).query(UUID.class).single();
         String trecho="Capacidade "+valor+" "+unidade+".";
         jdbc.sql("INSERT INTO pagina_texto(execucao_id,numero,texto) VALUES (:e,1,:t)").param("e",exec)

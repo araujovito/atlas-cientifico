@@ -27,7 +27,7 @@ class ChaveApiTest {
 	void semAChaveARespostaE401() throws Exception {
 		mvc.perform(get(rota()))
 				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.detail").value("Chave de acesso ausente ou incorreta."));
+				.andExpect(jsonPath("$.detail").value("Entre na sua conta."));
 	}
 
 	@Test
@@ -37,10 +37,16 @@ class ChaveApiTest {
 	}
 
 	@Test
-	void comAChaveCertaARequisicaoChegaAoControlador() throws Exception {
-		// 404: a execução não existe, o que prova que passou pelo filtro.
+	void chaveCertaNaoSubstituiSessao() throws Exception {
 		mvc.perform(get(rota()).header("X-Atlas-Chave", "chave-de-teste"))
-				.andExpect(status().isNotFound());
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test void metricasGlobaisExigemSessaoEChaveDeOperacao() throws Exception {
+		var conta=ContasTeste.cadastrar(mvc,"operacao-"+UUID.randomUUID()+"@example.com");
+		mvc.perform(ContasTeste.com(get("/api/operacao/metricas"),conta)).andExpect(status().isUnauthorized());
+		mvc.perform(get("/api/operacao/metricas").header("X-Atlas-Chave","chave-de-teste")).andExpect(status().isUnauthorized());
+		mvc.perform(ContasTeste.com(get("/api/operacao/metricas"),conta).header("X-Atlas-Chave","chave-de-teste")).andExpect(status().isOk());
 	}
 
 	@Test

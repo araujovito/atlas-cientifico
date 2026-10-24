@@ -16,20 +16,21 @@ import org.springframework.web.server.ResponseStatusException;
 public class ColecaoController {
     private final JdbcClient jdbc;
     private final CatalogoService catalogo;
-    public ColecaoController(JdbcClient jdbc, CatalogoService catalogo) { this.jdbc = jdbc; this.catalogo = catalogo; }
+    private final dev.atlas.acesso.UsuarioAtual usuario;
+    public ColecaoController(JdbcClient jdbc, CatalogoService catalogo,dev.atlas.acesso.UsuarioAtual usuario) { this.jdbc = jdbc; this.catalogo = catalogo;this.usuario=usuario; }
     public record Nome(@NotBlank @Size(max=200) String nome) {}
     public record Colecao(UUID id, String nome) {}
 
     @PostMapping
     public Colecao criar(@Valid @RequestBody Nome pedido) {
-        return jdbc.sql("INSERT INTO colecao(nome) VALUES (:nome) RETURNING id,nome")
-                .param("nome", pedido.nome().strip()).query((rs,row) -> new Colecao(rs.getObject("id",UUID.class),rs.getString("nome"))).single();
+        return jdbc.sql("INSERT INTO colecao(nome,dono_id) VALUES (:nome,:u) RETURNING id,nome")
+                .param("nome", pedido.nome().strip()).param("u",usuario.id()).query((rs,row) -> new Colecao(rs.getObject("id",UUID.class),rs.getString("nome"))).single();
     }
     @GetMapping
     public List<Colecao> listar(@RequestParam(defaultValue="50") int limite, @RequestParam(defaultValue="0") int deslocamento) {
         CatalogoService.validarPagina(limite,deslocamento);
-        return jdbc.sql("SELECT id,nome FROM colecao ORDER BY criado_em,id LIMIT :n OFFSET :o")
-                .param("n",limite).param("o",deslocamento).query((rs,row) -> new Colecao(rs.getObject("id",UUID.class),rs.getString("nome"))).list();
+        return jdbc.sql("SELECT id,nome FROM colecao WHERE dono_id=:u ORDER BY criado_em,id LIMIT :n OFFSET :o")
+                .param("n",limite).param("o",deslocamento).param("u",usuario.id()).query((rs,row) -> new Colecao(rs.getObject("id",UUID.class),rs.getString("nome"))).list();
     }
     @PutMapping("/{id}/obras/{obra}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -51,7 +52,7 @@ public class ColecaoController {
                 .param("id",id).param("n",limite).param("o",deslocamento).query(UUID.class).list());
     }
     private void exigir(UUID id) {
-        if (!jdbc.sql("SELECT EXISTS(SELECT 1 FROM colecao WHERE id=:id)").param("id",id).query(Boolean.class).single())
+        if (!jdbc.sql("SELECT EXISTS(SELECT 1 FROM colecao WHERE id=:id AND dono_id=:u)").param("id",id).param("u",usuario.id()).query(Boolean.class).single())
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Coleção não encontrada.");
     }
 }

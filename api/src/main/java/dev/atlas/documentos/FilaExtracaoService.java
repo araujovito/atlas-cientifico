@@ -37,7 +37,7 @@ public class FilaExtracaoService {
         return tx.execute(s -> {
             String hash = jdbc.sql("SELECT sha256 FROM versao_documento WHERE id=:id").param("id",documento).query(String.class)
                     .optional().orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Documento não encontrado."));
-            String chave = hash+":"+ProcessadorDocumentoService.VERSAO_PROCESSADOR;
+            String chave = documento+":"+hash+":"+ProcessadorDocumentoService.VERSAO_PROCESSADOR;
             var criada = jdbc.sql("INSERT INTO tarefa_extracao(documento_id,chave) VALUES (:d,:c) ON CONFLICT(chave) DO NOTHING RETURNING id")
                     .param("d",documento).param("c",chave).query(UUID.class).optional();
             UUID id = criada.orElseGet(() -> jdbc.sql("SELECT id FROM tarefa_extracao WHERE chave=:c").param("c",chave).query(UUID.class).single());
@@ -152,6 +152,13 @@ public class FilaExtracaoService {
         obter(id);
         return jdbc.sql("SELECT * FROM tarefa_evento WHERE tarefa_id=:id ORDER BY id LIMIT 1000").param("id",id)
                 .query((rs,row) -> new Evento(rs.getLong("id"),rs.getString("estado"),rs.getString("detalhe"),rs.getTimestamp("registrado_em").toInstant())).list();
+    }
+
+    public List<Tarefa> listarDoDono(UUID dono,String estado,int limite) {
+        if(limite<1 || limite>100 || !List.of("PENDENTE","EM_ANDAMENTO","CONCLUIDO","PRECISA_OCR","FALHOU").contains(estado))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Estado ou limite inválido.");
+        return jdbc.sql("SELECT t.* FROM tarefa_extracao t JOIN versao_documento d ON d.id=t.documento_id WHERE d.dono_id=:u AND t.estado=:e ORDER BY t.criado_em,t.id LIMIT :n")
+                .param("u",dono).param("e",estado).param("n",limite).query(this::ler).list();
     }
 
     private Tarefa ler(ResultSet rs,int row) throws SQLException {

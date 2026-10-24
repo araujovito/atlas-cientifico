@@ -10,7 +10,8 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api")
 public class FilaExtracaoController {
     private final FilaExtracaoService fila;
-    public FilaExtracaoController(FilaExtracaoService fila) { this.fila=fila; }
+    private final dev.atlas.acesso.UsuarioAtual usuario;
+    public FilaExtracaoController(FilaExtracaoService fila,dev.atlas.acesso.UsuarioAtual usuario) { this.fila=fila;this.usuario=usuario; }
     @PostMapping("/documentos/{documento}/processamentos")
     public ResponseEntity<FilaExtracaoService.Tarefa> agendar(@PathVariable UUID documento) {
         var tarefa=fila.agendar(documento);
@@ -24,6 +25,6 @@ public class FilaExtracaoController {
     public FilaExtracaoService.Tarefa retentar(@PathVariable UUID id) { return fila.retentar(id); }
     @GetMapping("/processamentos")
     public List<FilaExtracaoService.Tarefa> listar(@RequestParam(defaultValue="FALHOU") String estado,@RequestParam(defaultValue="50") int limite) {
-        return fila.listar(estado,limite);
+        return fila.listarDoDono(usuario.id(),estado,limite);
     }
 }
