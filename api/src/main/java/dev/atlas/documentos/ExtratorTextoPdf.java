@@ -14,7 +14,15 @@ import org.springframework.stereotype.Component;
 public class ExtratorTextoPdf {
 
 	public ResultadoExtracaoPdf extrair(Path arquivo) throws IOException {
+		return extrair(arquivo, Integer.MAX_VALUE);
+	}
+
+	/** Recusa o PDF antes de extrair qualquer texto se ele passar de paginasMaximas. */
+	public ResultadoExtracaoPdf extrair(Path arquivo, int paginasMaximas) throws IOException {
 		try (PDDocument documento = Loader.loadPDF(arquivo.toFile())) {
+			if (documento.getNumberOfPages() > paginasMaximas) {
+				throw new LimiteDePaginasExcedidoException(documento.getNumberOfPages(), paginasMaximas);
+			}
 			PDFTextStripper stripper = new PDFTextStripper();
 			List<PaginaPdf> paginas = new ArrayList<>(documento.getNumberOfPages());
 			boolean encontrouTexto = false;

@@ -30,7 +30,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 @Import(TestcontainersConfiguration.class)
-@SpringBootTest(properties = "atlas.documentos.diretorio=${java.io.tmpdir}/atlas-processamento-test")
+@SpringBootTest(properties = {
+		"atlas.documentos.diretorio=${java.io.tmpdir}/atlas-processamento-test",
+		"atlas.documentos.paginas-maximas=3"
+})
 @AutoConfigureMockMvc
 class ProcessamentoDocumentoTest {
 
@@ -285,6 +288,26 @@ class ProcessamentoDocumentoTest {
 	}
 
 	@Test
+	void recusaPdfComMaisPaginasQueOLimite() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("a", "b", "c", "d"));
+
+		mvc.perform(post("/api/documentos/{id}/extracoes", documento))
+			.andExpect(status().isUnprocessableEntity())
+			.andExpect(result -> assertThat(motivo(result)).contains("4 páginas").contains("limite é 3"));
+		assertThat(jdbc.sql("SELECT count(*) FROM execucao_processamento WHERE versao_documento_id=:d")
+				.param("d", documento).query(Long.class).single()).isZero();
+	}
+
+	@Test
+	void recusaPdfProtegidoPorSenhaComMensagemPropria() throws Exception {
+		UUID documento = enviarPdf(pdfComSenha("texto secreto"));
+
+		mvc.perform(post("/api/documentos/{id}/extracoes", documento))
+			.andExpect(status().isUnprocessableEntity())
+			.andExpect(result -> assertThat(motivo(result)).contains("protegido por senha"));
+	}
+
+	@Test
 	void medidasDaMesmaExecucaoCompartilhamEstudoEExperimentoPorObjeto() throws Exception {
 		UUID documento = enviarPdf(pdfComPaginas("Capacidade 125 mAh/g e tensao 3,4 V"));
 		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
@@ -368,6 +391,26 @@ class ProcessamentoDocumentoTest {
 					conteudo.endText();
 				}
 			}
+			documento.save(saida);
+			return saida.toByteArray();
+		}
+	}
+
+	private static byte[] pdfComSenha(String texto) throws Exception {
+		try (PDDocument documento = new PDDocument(); ByteArrayOutputStream saida = new ByteArrayOutputStream()) {
+			PDPage pagina = new PDPage();
+			documento.addPage(pagina);
+			try (PDPageContentStream conteudo = new PDPageContentStream(documento, pagina)) {
+				conteudo.beginText();
+				conteudo.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+				conteudo.newLineAtOffset(72, 720);
+				conteudo.showText(texto);
+				conteudo.endText();
+			}
+			var politica = new org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy(
+					"dono", "usuario", new org.apache.pdfbox.pdmodel.encryption.AccessPermission());
+			politica.setEncryptionKeyLength(128);
+			documento.protect(politica);
 			documento.save(saida);
 			return saida.toByteArray();
 		}
