@@ -53,7 +53,7 @@ Corrigido nesta revisão: caminho com `..` agora é normalizado antes do filtro;
 
 **Limites conhecidos que continuam (Fase B ou decisão):**
 
-- **Sem limite de tentativas.** Login e cadastro rodam Argon2id de 19 MiB por chamada e a pré-sessão necessária é gratuita: há risco de força bruta de senha e de esgotar CPU/memória. É o primeiro item da Fase B e **precisa existir antes de expor o site**.
+- **Limite de tentativas: implementado depois da revisão** (V17, `LimiteTentativas`; ver a seção abaixo). Os valores são escolhas do revisor, sem medição de tráfego.
 - **Enumeração de e-mails.** O cadastro devolve 409 para e-mail existente e 201 para novo; com `LISTA`, o 403 revela quem está na lista. É inerente ao cadastro aberto sem confirmação por e-mail.
 - **Cookie `__Host-`.** Exige `Secure`: funciona em `http://localhost` e `127.0.0.1` nos navegadores atuais, mas é descartado em `http://` com IP de rede local e no Safari. Para qualquer uso fora da máquina, TLS é obrigatório.
 - **Autorização só no interceptor.** Os serviços (`FilaExtracaoService`, `ProcessadorDocumentoService`, `RevisaoService`, `associarDocumento`) não verificam o dono. Um chamador novo fora do interceptor (job, rota com variável de outro nome) vazaria. Não há esse caminho hoje; falta teste direto de serviço com dono errado.
@@ -61,6 +61,22 @@ Corrigido nesta revisão: caminho com `..` agora é normalizado antes do filtro;
 - **Citações públicas.** `POST /api/catalogo/obras/{obra}/citacoes` aciona consulta externa para qualquer conta: abuso de cota do OpenAlex, não vazamento.
 - **Sessão de 8 h absoluta**, sem renovação nem revogação em massa.
 - Não testado: atrás de proxy real, em Safari/Firefox, nem o smoke Docker com contas.
+
+### Limite de tentativas (implementado em 2026-10-24)
+
+Contadores de janela fixa no PostgreSQL (valem com mais de uma instância), checados **antes** do Argon2, que é o custo que a recusa protege. A resposta é 429 com `Retry-After`.
+
+| Balde | Padrão | O que conta |
+|---|---|---|
+| Cadastro por IP | 5 por hora | toda tentativa |
+| Login por IP | 20 por 15 min | toda tentativa |
+| Falhas por e-mail + IP | 5 por 15 min | só senha errada |
+| Falhas por e-mail | 20 por 15 min | só senha errada, de qualquer IP |
+| Pré-sessão por IP | 60 por 10 min | criação de sessão anônima |
+
+Login correto zera os contadores do par e do e-mail. O e-mail não fica em claro na tabela (SHA-256). Tudo é configurável em `atlas.limites.*`.
+
+Limites que seguem: **(1)** atrás de proxy o IP da conexão é o do proxy e todos dividem um balde; `ATLAS_LIMITES_CABECALHO_IP` usa o último valor do cabeçalho informado, o que só é seguro se a porta da aplicação for alcançável apenas pelo proxy. **(2)** quem controla muitos IPs consegue chegar aos 20 erros do e-mail e travar aquela conta por 15 minutos: é a troca por não permitir força bruta distribuída. **(3)** janela fixa admite até o dobro do limite na virada da janela. **(4)** upload, processamento e consultas ao OpenAlex ainda não têm limite por usuário.
 
 ## Fase B — limites para quem é público
 

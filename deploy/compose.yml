@@ -24,6 +24,9 @@ x-app: &app
     ATLAS_CHAVE_API: ${ATLAS_CHAVE_API:?Defina ATLAS_CHAVE_API}
     OPENALEX_API_KEY: ${OPENALEX_API_KEY:-}
     ATLAS_ORIGENS_PERMITIDAS: ${ATLAS_ORIGENS_PERMITIDAS:-}
+    # Atrás de proxy TLS: nome do cabeçalho com o IP do cliente (ex.: X-Forwarded-For). Só se a porta da aplicação
+    # for alcançável apenas pelo proxy; vazio usa o endereço da conexão e todos dividem um balde.
+    ATLAS_LIMITES_CABECALHO_IP: ${ATLAS_LIMITES_CABECALHO_IP:-}
     ATLAS_CADASTRO: ${ATLAS_CADASTRO:-ABERTO}
     ATLAS_EMAILS_PERMITIDOS: ${ATLAS_EMAILS_PERMITIDOS:-}
     ATLAS_PDF_ORIGINAL: ${ATLAS_PDF_ORIGINAL:-DESABILITADO}
