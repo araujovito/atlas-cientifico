@@ -1,22 +1,25 @@
 # Conjunto de referência: candidatos iniciais
 
-Estado: seleção preliminar, ainda não é um conjunto de avaliação. Consultado em 2026-10-24.
+Estado: seleção preliminar, ainda não é um conjunto de avaliação. Texto XML consultado em 2026-10-24; nenhum PDF foi incluído no repositório.
 
 ## Candidato A — texto de artigo sobre cátodo NCM
 
 - Negi RS, Elm MT. “Reproducible long-term cycling data of Al₂O₃ coated LiNi₀.₇₀Co₀.₁₅Mn₀.₁₅O₂ cathodes for lithium-ion batteries.” *Scientific Data* (2022). DOI: [10.1038/s41597-022-01217-5](https://doi.org/10.1038/s41597-022-01217-5). PMCID: [PMC8967842](https://pmc.ncbi.nlm.nih.gov/articles/PMC8967842/). Texto completo XML: [Europe PMC](https://www.ebi.ac.uk/europepmc/webservices/rest/PMC8967842/fullTextXML).
 - **Por que é candidato:** o artigo descreve dados de capacidade específica de descarga e impedância eletroquímica de células com cátodos NCM, relevantes ao recorte do Atlas. A Europe PMC disponibiliza o XML de texto completo e identifica o artigo como acesso aberto.
+- **Inspeção estrutural do XML:** há três tabelas e quatro figuras; a Tabela 2 é descrita como metadados de número de ciclo, capacidade de descarga, resposta de impedância e retenção de capacidade. Isso torna o texto promissor para o recorte, mas não confirma que o PDF exponha as mesmas relações de forma legível nem fornece páginas para as evidências.
 - **Licença do artigo:** o XML do texto completo declara Creative Commons Attribution 4.0 International (CC BY 4.0). A licença permite compartilhar e adaptar o artigo com atribuição, link para a licença e indicação de alterações; materiais de terceiros podem ter créditos/licenças próprios e precisam ser conferidos individualmente.
 - **Dados associados:** o artigo aponta para o projeto OSF [osf.io/ybd6f](https://osf.io/ybd6f/). A API pública do OSF o identifica como público, mas retorna `license: null`. Portanto, não copiar, baixar para redistribuição nem tratar os arquivos depositados no OSF como licenciados até confirmar os termos diretamente com os autores ou com o repositório.
 - **Uso permitido nesta etapa:** avaliar o texto do artigo sob CC BY para extração e rastreabilidade, mantendo metadados, atribuição e proveniência. Não incluir o PDF no Git. Conferir os créditos de figuras e demais materiais antes de reutilizá-los.
-- **Ainda falta verificar:** se o PDF acessível corresponde à versão coberta pela licença declarada; estrutura e legibilidade das tabelas no PDF; quais campos de capacidade, taxa C, ciclos e condições podem ser anotados com evidência reproduzível. Não usar valores do artigo como gabarito até revisão manual independente.
+- **Ainda falta verificar:** mapear o XML à versão PDF licenciada e às páginas físicas; confirmar estrutura e legibilidade das tabelas; anotar campos de capacidade, taxa C, ciclos e condições com evidência reproduzível. Não usar valores do artigo como gabarito até revisão manual independente.
 
 ## Outros candidatos para ampliar os formatos
 
-Estes artigos também declaram CC BY 4.0 no XML de texto completo servido pela Europe PMC. São candidatos para verificar variedade de tabelas e evidências, ainda não processados nem anotados.
+Estes artigos também declaram CC BY 4.0 no XML de texto completo servido pela Europe PMC. A inspeção estrutural inicial sugere que suas tabelas não são as melhores fontes para métricas de desempenho; ficam como candidatos secundários, ainda sem PDF ou anotação.
 
 - Sun X, et al. “Effect of Different Composition on Voltage Attenuation of Li-Rich Cathode Material for Lithium-Ion Batteries.” *Materials* (2019). DOI: [10.3390/ma13010040](https://doi.org/10.3390/ma13010040). PMCID: [PMC6981382](https://pmc.ncbi.nlm.nih.gov/articles/PMC6981382/). [Texto completo XML](https://www.ebi.ac.uk/europepmc/webservices/rest/PMC6981382/fullTextXML).
+  - **Observação de escopo:** o XML tem uma tabela sobre razões de intensidade de picos de difração de raios X; resultados eletroquímicos aparecem em prosa e figuras. Pode ajudar a testar campos que não devem ser confundidos com capacidade, mas não é o primeiro candidato para uma linha de comparação de desempenho.
 - “Construction of Uniform LiF Coating Layers for Stable High-Voltage LiCoO₂ Cathodes in Lithium-Ion Batteries.” *Molecules* (2024). DOI: [10.3390/molecules29061414](https://doi.org/10.3390/molecules29061414). PMCID: [PMC10974255](https://pmc.ncbi.nlm.nih.gov/articles/PMC10974255/). [Texto completo XML](https://www.ebi.ac.uk/europepmc/webservices/rest/PMC10974255/fullTextXML).
+  - **Observação de escopo:** a tabela principal contém parâmetros de rede; parte dos resultados eletroquímicos está em figuras e informação suplementar. Não usar arquivos suplementares até confirmar seus termos/licenças.
 
 As licenças de figuras e materiais de terceiros devem ser verificadas nos próprios artigos. A presença dos candidatos nesta lista não significa que os PDFs, figuras ou dados suplementares já foram baixados, incorporados ou revisados.
 
