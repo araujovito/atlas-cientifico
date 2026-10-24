@@ -43,3 +43,4 @@ Este endpoint só registra e armazena o PDF. Ainda não extrai texto, não confi
 ## Documentos
 
 - [Especificação inicial](docs/especificacao.md): recorte, arquitetura, modelo de dados, eventos, decisões e entregas.
+- [Revisão cruzada](docs/revisao-cruzada.md): achados da revisão por um segundo agente, o que foi corrigido e o que segue aberto.
