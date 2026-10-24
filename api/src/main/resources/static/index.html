@@ -37,6 +37,8 @@
   <h1>Atlas Científico</h1>
   <p class="muted">Um primeiro fluxo para conferir texto de PDFs e ligar cada medida à sua evidência.</p>
   <p class="muted">O registro da medida é manual nesta versão. O Atlas não interpreta nem valida o resultado científico.</p>
+  <label for="api-key">Chave de acesso (só se a API exigir)</label>
+  <input id="api-key" type="password" autocomplete="off">
   <div id="status" role="status" aria-live="polite"></div>
 
   <section>
@@ -105,7 +107,14 @@
     statusBox.className = error ? 'error' : 'success';
   }
 
-  async function request(url, options) {
+  try { document.querySelector('#api-key').value = sessionStorage.getItem('atlas-chave') || ''; } catch { /* ignora */ }
+
+  async function request(url, options = {}) {
+    const chave = document.querySelector('#api-key').value.trim();
+    if (chave) {
+      try { sessionStorage.setItem('atlas-chave', chave); } catch { /* sem armazenamento: usa só o campo */ }
+      options = { ...options, headers: { ...(options.headers || {}), 'X-Atlas-Chave': chave } };
+    }
     const response = await fetch(url, options);
     if (!response.ok) {
       let detail = `A solicitação falhou (${response.status}).`;
