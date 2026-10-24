@@ -174,11 +174,65 @@ public class ProcessadorDocumentoService {
 
 	@Transactional
 	public MedidaRegistrada registrarMedida(UUID documentoId, UUID execucaoId, MedidaCandidata medida) {
+		var validada = validarMedida(documentoId,execucaoId,medida);
+		UUID versaoDocumento = validada.versaoDocumento();
+		String trecho = validada.medida().trecho();
+		Integer inicioCaractere = validada.inicio();
+		Integer fimCaractere = validada.fim();
+		boolean ausente = "AUSENTE".equals(medida.estado());
+
+		// O no-op em DO UPDATE faz o RETURNING devolver o id também quando a linha já existe.
+		UUID estudoId = jdbc.sql("""
+				INSERT INTO estudo (versao_documento_id, execucao_id) VALUES (:documento, :execucao)
+				ON CONFLICT (execucao_id) DO UPDATE SET execucao_id = EXCLUDED.execucao_id
+				RETURNING id
+				""")
+			.param("documento", versaoDocumento).param("execucao", execucaoId).query(UUID.class).single();
+		String condicoesJson = serializarCondicoes(medida.condicoes());
+		UUID experimentoId = jdbc.sql("""
+				INSERT INTO experimento (estudo_id, objeto, condicoes)
+				VALUES (:estudo, :objeto, CAST(:condicoes AS jsonb))
+				ON CONFLICT (estudo_id, objeto, condicoes) DO UPDATE SET objeto = EXCLUDED.objeto
+				RETURNING id
+				""")
+			.param("estudo", estudoId).param("objeto", medida.objeto().trim())
+			.param("condicoes", condicoesJson).query(UUID.class).single();
+		UUID medidaId = jdbc.sql("""
+				INSERT INTO medida (experimento_id, metrica, valor_original, unidade_original, estado)
+				VALUES (:experimento, :metrica, :valor, :unidade, :estado)
+				ON CONFLICT (experimento_id, metrica, estado, (COALESCE(valor_original, '')), (COALESCE(unidade_original, '')))
+				DO UPDATE SET metrica = EXCLUDED.metrica
+				RETURNING id
+				""")
+			.param("experimento", experimentoId).param("metrica", medida.metrica().trim())
+			.param("valor", medida.valorOriginal()).param("unidade", medida.unidadeOriginal())
+			.param("estado", medida.estado()).query(UUID.class).single();
+		UUID evidenciaId = null;
+		if (!ausente) {
+			evidenciaId = jdbc.sql("""
+					INSERT INTO evidencia (medida_id, pagina, trecho, inicio_caractere, fim_caractere)
+					VALUES (:medida, :pagina, :trecho, :inicio, :fim)
+					ON CONFLICT (medida_id, pagina, inicio_caractere, fim_caractere) WHERE inicio_caractere IS NOT NULL
+					DO UPDATE SET trecho = EXCLUDED.trecho
+					RETURNING id
+					""")
+				.param("medida", medidaId).param("pagina", medida.pagina()).param("trecho", trecho)
+				.param("inicio", inicioCaractere).param("fim", fimCaractere)
+				.query(UUID.class).single();
+		}
+		return new MedidaRegistrada(estudoId, experimentoId, medidaId, evidenciaId, medida.estado());
+	}
+
+
+	public record MedidaValidada(UUID versaoDocumento, MedidaCandidata medida, Integer inicio, Integer fim) {}
+
+	/** Valida também revisões, sem criar estudo, medida ou evidência. */
+	public MedidaValidada validarMedida(UUID documentoId, UUID execucaoId, MedidaCandidata medida) {
 		if (medida == null || vazio(medida.objeto()) || vazio(medida.metrica())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Objeto e métrica são obrigatórios.");
 		}
 		validarTamanhos(medida);
-		if (!List.of("REPORTADO", "INFERIDO", "AUSENTE", "PENDENTE_REVISAO").contains(medida.estado())) {
+		if (medida.estado() == null || !List.of("REPORTADO", "INFERIDO", "AUSENTE", "PENDENTE_REVISAO").contains(medida.estado())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Estado da medida inválido.");
 		}
 		boolean ausente = "AUSENTE".equals(medida.estado());
@@ -233,49 +287,11 @@ public class ProcessadorDocumentoService {
 			inicioCaractere = achado.inicio();
 			fimCaractere = achado.fim();
 		}
-
-		// O no-op em DO UPDATE faz o RETURNING devolver o id também quando a linha já existe.
-		UUID estudoId = jdbc.sql("""
-				INSERT INTO estudo (versao_documento_id, execucao_id) VALUES (:documento, :execucao)
-				ON CONFLICT (execucao_id) DO UPDATE SET execucao_id = EXCLUDED.execucao_id
-				RETURNING id
-				""")
-			.param("documento", versaoDocumento).param("execucao", execucaoId).query(UUID.class).single();
-		String condicoesJson = serializarCondicoes(medida.condicoes());
-		UUID experimentoId = jdbc.sql("""
-				INSERT INTO experimento (estudo_id, objeto, condicoes)
-				VALUES (:estudo, :objeto, CAST(:condicoes AS jsonb))
-				ON CONFLICT (estudo_id, objeto, condicoes) DO UPDATE SET objeto = EXCLUDED.objeto
-				RETURNING id
-				""")
-			.param("estudo", estudoId).param("objeto", medida.objeto().trim())
-			.param("condicoes", condicoesJson).query(UUID.class).single();
-		UUID medidaId = jdbc.sql("""
-				INSERT INTO medida (experimento_id, metrica, valor_original, unidade_original, estado)
-				VALUES (:experimento, :metrica, :valor, :unidade, :estado)
-				ON CONFLICT (experimento_id, metrica, estado, (COALESCE(valor_original, '')), (COALESCE(unidade_original, '')))
-				DO UPDATE SET metrica = EXCLUDED.metrica
-				RETURNING id
-				""")
-			.param("experimento", experimentoId).param("metrica", medida.metrica().trim())
-			.param("valor", medida.valorOriginal()).param("unidade", medida.unidadeOriginal())
-			.param("estado", medida.estado()).query(UUID.class).single();
-		UUID evidenciaId = null;
-		if (!ausente) {
-			evidenciaId = jdbc.sql("""
-					INSERT INTO evidencia (medida_id, pagina, trecho, inicio_caractere, fim_caractere)
-					VALUES (:medida, :pagina, :trecho, :inicio, :fim)
-					ON CONFLICT (medida_id, pagina, inicio_caractere, fim_caractere) WHERE inicio_caractere IS NOT NULL
-					DO UPDATE SET trecho = EXCLUDED.trecho
-					RETURNING id
-					""")
-				.param("medida", medidaId).param("pagina", medida.pagina()).param("trecho", trecho)
-				.param("inicio", inicioCaractere).param("fim", fimCaractere)
-				.query(UUID.class).single();
-		}
-		return new MedidaRegistrada(estudoId, experimentoId, medidaId, evidenciaId, medida.estado());
+		var canonica = new MedidaCandidata(medida.objeto().strip(),medida.metrica().strip(),medida.valorOriginal(),
+			medida.unidadeOriginal(),medida.estado(),ausente?null:medida.pagina(),ausente?null:trecho,
+			medida.condicoes()==null?Map.of():medida.condicoes());
+		return new MedidaValidada(versaoDocumento,canonica,inicioCaractere,fimCaractere);
 	}
-
 	private void exigirExecucaoDoDocumento(UUID documentoId, UUID execucaoId) {
 		boolean pertence = jdbc.sql("""
 				SELECT EXISTS (
