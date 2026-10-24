@@ -46,11 +46,12 @@ class UploadDocumentoTest {
 				.param("titulo", "Artigo de teste"))
 			.andExpect(status().isOk()).andReturn();
 
-		String hash = jdbc.sql("SELECT sha256 FROM versao_documento WHERE origem = 'UPLOAD'")
-				.query(String.class).single();
-		assertThat(result.getResponse().getContentAsString()).contains(hash, "\"duplicado\":false");
-		assertThat(jdbc.sql("SELECT count(*) FROM versao_documento WHERE origem='UPLOAD'")
-				.query(Long.class).single()).isEqualTo(1);
+		// Tudo filtrado pelo hash devolvido: contar a tabela inteira dependeria de nenhum outro teste
+		// ter deixado linhas nela.
+		String hash = extrair(result.getResponse().getContentAsString(), "sha256");
+		assertThat(result.getResponse().getContentAsString()).contains("\"duplicado\":false");
+		assertThat(jdbc.sql("SELECT count(*) FROM versao_documento WHERE sha256=:h")
+				.param("h", hash).query(Long.class).single()).isEqualTo(1);
 		assertThat(jdbc.sql("SELECT autorizacao_confirmada_em FROM versao_documento WHERE sha256=:h")
 				.param("h", hash).query(java.time.Instant.class).single()).isNotNull();
 	}
@@ -68,8 +69,8 @@ class UploadDocumentoTest {
 
 		assertThat(segundo).contains("\"duplicado\":true");
 		assertThat(segundo).contains(extrair(primeiro, "id"));
-		assertThat(jdbc.sql("SELECT count(*) FROM versao_documento WHERE origem='UPLOAD'")
-				.query(Long.class).single()).isEqualTo(1);
+		assertThat(jdbc.sql("SELECT count(*) FROM versao_documento WHERE sha256=:h")
+				.param("h", extrair(primeiro, "sha256")).query(Long.class).single()).isEqualTo(1);
 	}
 
 	@Test
