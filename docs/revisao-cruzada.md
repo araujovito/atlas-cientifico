@@ -177,4 +177,6 @@ O autor pediu para tratar o que tinha ficado de fora. O CI do commit final passo
 | Corridas e erros da tela | `fix(ui)` ×2 | Números de operação, paginação do grafo protegida, prazo de 120 s, erro de rede em português; só sintaxe local e CI |
 | Lacunas de teste | `test(...)` ×3 | Cadeia de revisões, AUSENTE, 404, concorrência real do `FOR UPDATE`, bordas do avaliador, grafo A→B→A, telemetria pelo worker real |
 
-Segue em aberto, por exigir decisão ou medição: contas por usuário, S3, memória real dos contêineres sob carga, `server.error.include-message` (mantido: a tela depende do `detail`), limite de crescimento dos metadados por obra, teste de navegador para busca/paginação/histórico, execução da CLI do avaliador e smoke do compose com o healthcheck novo.
+Segue em aberto, por exigir decisão ou medição: contas por usuário, S3, memória real dos contêineres sob carga, `server.error.include-message` (mantido: a tela depende do `detail`) e smoke do compose com o healthcheck novo.
+
+Fechados depois da tabela: metadados por obra limitados a 20 por resposta (o banco guarda todos), teste de navegador para busca/paginação e para o histórico de revisões, e teste da CLI do avaliador com a fixture sintética.
