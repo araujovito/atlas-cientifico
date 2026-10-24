@@ -231,6 +231,8 @@ class ProcessamentoDocumentoTest {
 				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsBytes(candidata("0.5", "taxa 0.5 C", "REPORTADO"))))
 			.andExpect(status().isConflict())
+			// O corpo da resposta, não só a exceção: é o que a tela e os clientes recebem.
+			.andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("mais de uma vez")))
 			.andExpect(result -> assertThat(motivo(result)).contains("mais de uma vez"));
 		assertThat(medidasDaExecucao(execucao)).isZero();
 
