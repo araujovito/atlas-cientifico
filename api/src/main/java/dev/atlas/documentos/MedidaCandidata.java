@@ -1,5 +1,7 @@
 package dev.atlas.documentos;
 
+import java.util.Map;
+
 /** Medida estruturada para validar o fluxo sem depender de chamada externa de IA. */
 public record MedidaCandidata(
 		String objeto,
@@ -8,5 +10,6 @@ public record MedidaCandidata(
 		String unidadeOriginal,
 		String estado,
 		Integer pagina,
-		String trecho) {
+		String trecho,
+		Map<String, Object> condicoes) {
 }

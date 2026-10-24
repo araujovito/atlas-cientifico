@@ -36,9 +36,9 @@ Este endpoint só registra e armazena o PDF. Ainda não extrai texto, não confi
 
 `GET /api/documentos/{documentoId}/extracoes/{execucaoId}/paginas` permite conferir o texto extraído, com o número de cada página. A execução precisa pertencer ao documento informado; caso contrário, a API retorna `404`.
 
-`POST /api/documentos/{documentoId}/extracoes/{execucaoId}/medidas` registra uma medida candidata sem chamar IA. Para estados diferentes de `AUSENTE`, a página e o trecho são obrigatórios, e o trecho precisa existir literalmente no texto extraído daquela página. Valor e unidade originais são preservados. O endpoint é um alicerce para avaliar extrações pré-gravadas, não uma extração automática.
+`POST /api/documentos/{documentoId}/extracoes/{execucaoId}/medidas` registra uma medida candidata sem chamar IA. Para estados diferentes de `AUSENTE`, a página e o trecho são obrigatórios, e o trecho precisa existir literalmente no texto extraído daquela página. Valor, unidade originais e condições experimentais são preservados. Experimentos do mesmo material com condições diferentes ficam separados. O endpoint é um alicerce para avaliar extrações pré-gravadas, não uma extração automática.
 
-`GET /api/documentos/{documentoId}/extracoes/{execucaoId}/medidas` lista as medidas da execução com objeto, métrica, valor e unidade originais, estado e evidência (página e trecho). Medidas no estado `AUSENTE` são retornadas sem evidência.
+`GET /api/documentos/{documentoId}/extracoes/{execucaoId}/medidas` lista as medidas da execução com objeto, métrica, valor e unidade originais, estado, condições experimentais e evidência (página e trecho). Medidas no estado `AUSENTE` são retornadas sem evidência.
 
 ## Documentos
 

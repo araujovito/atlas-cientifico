@@ -140,7 +140,7 @@ class ProcessamentoDocumentoTest {
 		UUID execucao = UUID.fromString(processamento.get("execucaoId").asText());
 		var candidata = new dev.atlas.documentos.MedidaCandidata(
 				"LiFePO4", "capacidade específica", "125", "mAh/g", "REPORTADO", 1,
-				"Capacidade específica: 125 mAh/g");
+				"Capacidade específica: 125 mAh/g", java.util.Map.of("taxa", "0,1 C"));
 
 		MvcResult resposta = mvc.perform(post("/api/documentos/{documentoId}/extracoes/{execucaoId}/medidas", documento, execucao)
 				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
@@ -152,6 +152,11 @@ class ProcessamentoDocumentoTest {
 		assertThat(jdbc.sql("SELECT valor_original || ' ' || unidade_original FROM medida WHERE id=:id")
 				.param("id", UUID.fromString(registrada.get("medidaId").asText())).query(String.class).single())
 				.isEqualTo("125 mAh/g");
+		assertThat(jdbc.sql("""
+				SELECT x.condicoes ->> 'taxa' FROM experimento x
+				JOIN medida m ON m.experimento_id=x.id WHERE m.id=:id
+				""").param("id", UUID.fromString(registrada.get("medidaId").asText()))
+				.query(String.class).single()).isEqualTo("0,1 C");
 		assertThat(jdbc.sql("SELECT pagina || ':' || trecho FROM evidencia WHERE id=:id")
 				.param("id", UUID.fromString(registrada.get("evidenciaId").asText())).query(String.class).single())
 				.isEqualTo("1:Capacidade específica: 125 mAh/g");
@@ -160,6 +165,7 @@ class ProcessamentoDocumentoTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].valorOriginal").value("125"))
 				.andExpect(jsonPath("$[0].unidadeOriginal").value("mAh/g"))
+				.andExpect(jsonPath("$[0].condicoes.taxa").value("0,1 C"))
 				.andExpect(jsonPath("$[0].pagina").value(1))
 				.andExpect(jsonPath("$[0].trecho").value("Capacidade específica: 125 mAh/g"));
 	}
@@ -169,7 +175,7 @@ class ProcessamentoDocumentoTest {
 		UUID documento = enviarPdf(pdfComPaginas("Texto original da página"));
 		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
 		var candidata = new dev.atlas.documentos.MedidaCandidata(
-				"LiFePO4", "capacidade", "999", "mAh/g", "REPORTADO", 1, "999 mAh/g");
+				"LiFePO4", "capacidade", "999", "mAh/g", "REPORTADO", 1, "999 mAh/g", java.util.Map.of());
 
 		mvc.perform(post("/api/documentos/{documentoId}/extracoes/{execucaoId}/medidas", documento, execucao)
 				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
@@ -196,6 +202,21 @@ class ProcessamentoDocumentoTest {
 				""").param("e", execucao).query(Long.class).single()).isEqualTo(2);
 	}
 
+	@Test
+	void mesmoObjetoComCondicoesDiferentesGeraExperimentosSeparados() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("Capacidade 125 mAh/g e capacidade 98 mAh/g"));
+		UUID execucao = UUID.fromString(processar(documento).get("execucaoId").asText());
+
+		registrar(documento, execucao, "LiFePO4", "capacidade", "125", "mAh/g", "Capacidade 125 mAh/g");
+		registrar(documento, execucao, "LiFePO4", "capacidade", "98", "mAh/g", "capacidade 98 mAh/g",
+				java.util.Map.of("taxa", "1 C"));
+
+		assertThat(jdbc.sql("""
+				SELECT count(*) FROM experimento x JOIN estudo s ON s.id=x.estudo_id
+				WHERE s.execucao_id=:execucao AND x.objeto='LiFePO4'
+				""").param("execucao", execucao).query(Long.class).single()).isEqualTo(2);
+	}
+
 	private long medidasDaExecucao(UUID execucao) {
 		return jdbc.sql("""
 				SELECT count(*) FROM medida m
@@ -207,7 +228,13 @@ class ProcessamentoDocumentoTest {
 
 	private void registrar(UUID documento, UUID execucao, String objeto, String metrica, String valor,
 			String unidade, String trecho) throws Exception {
-		var candidata = new dev.atlas.documentos.MedidaCandidata(objeto, metrica, valor, unidade, "REPORTADO", 1, trecho);
+		registrar(documento, execucao, objeto, metrica, valor, unidade, trecho, java.util.Map.of());
+	}
+
+	private void registrar(UUID documento, UUID execucao, String objeto, String metrica, String valor,
+			String unidade, String trecho, java.util.Map<String, Object> condicoes) throws Exception {
+		var candidata = new dev.atlas.documentos.MedidaCandidata(
+				objeto, metrica, valor, unidade, "REPORTADO", 1, trecho, condicoes);
 		mvc.perform(post("/api/documentos/{documentoId}/extracoes/{execucaoId}/medidas", documento, execucao)
 				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsBytes(candidata)))

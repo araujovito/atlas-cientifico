@@ -77,6 +77,9 @@
         </select></div>
         <div id="page-field"><label for="evidence-page">Página da evidência</label><select id="evidence-page"></select></div>
       </div>
+      <label for="conditions">Condições experimentais (objeto JSON)</label>
+      <textarea id="conditions">{}</textarea>
+      <p class="muted">Exemplo: {"taxa_corrente":"190 mA/g","carga_catodo":"2.4 mg/cm²"}</p>
       <div id="excerpt-field"><label for="excerpt">Trecho literal</label><textarea id="excerpt" maxlength="5000"></textarea></div>
       <button id="save-button" type="submit">Salvar medida</button>
     </form>
@@ -172,6 +175,17 @@
     const button = document.querySelector('#save-button');
     button.disabled = true;
     const state = document.querySelector('#state').value;
+    let condicoes;
+    try {
+      condicoes = JSON.parse(document.querySelector('#conditions').value);
+      if (!condicoes || typeof condicoes !== 'object' || Array.isArray(condicoes)) {
+        throw new Error('As condições precisam ser um objeto JSON.');
+      }
+    } catch (error) {
+      showStatus(error.message || 'Condições JSON inválidas.', true);
+      button.disabled = false;
+      return;
+    }
     const payload = {
       objeto: document.querySelector('#object').value,
       metrica: document.querySelector('#metric').value,
@@ -179,7 +193,8 @@
       unidadeOriginal: state === 'AUSENTE' ? null : document.querySelector('#unit').value || null,
       estado: state,
       pagina: state === 'AUSENTE' ? null : Number(document.querySelector('#evidence-page').value),
-      trecho: state === 'AUSENTE' ? null : document.querySelector('#excerpt').value
+      trecho: state === 'AUSENTE' ? null : document.querySelector('#excerpt').value,
+      condicoes
     };
     try {
       await request(`/api/documentos/${documentId}/extracoes/${executionId}/medidas`, {
@@ -206,6 +221,11 @@
       const value = document.createElement('p');
       value.textContent = measure.estado === 'AUSENTE' ? 'Informação ausente no texto' : `${measure.valorOriginal}${measure.unidadeOriginal ? ` ${measure.unidadeOriginal}` : ''} · ${measure.estado}`;
       article.append(heading, value);
+      if (measure.condicoes && Object.keys(measure.condicoes).length > 0) {
+        const conditions = document.createElement('p');
+        conditions.textContent = `Condições: ${JSON.stringify(measure.condicoes)}`;
+        article.append(conditions);
+      }
       if (measure.trecho) {
         const page = document.createElement('p');
         page.textContent = `Página ${measure.pagina}`;

@@ -6,7 +6,9 @@ import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -23,16 +25,19 @@ public class ProcessadorDocumentoService {
 	private final UploadProperties properties;
 	private final ExtratorTextoPdf extrator;
 	private final TransactionTemplate transacoes;
+	private final ObjectMapper objectMapper;
 
 	public ProcessadorDocumentoService(
 			JdbcClient jdbc,
 			UploadProperties properties,
 			ExtratorTextoPdf extrator,
-			TransactionTemplate transacoes) {
+			TransactionTemplate transacoes,
+			ObjectMapper objectMapper) {
 		this.jdbc = jdbc;
 		this.properties = properties;
 		this.extrator = extrator;
 		this.transacoes = transacoes;
+		this.objectMapper = objectMapper;
 	}
 
 	public ResultadoProcessamentoDocumento processar(UUID documentoId) {
@@ -119,7 +124,7 @@ public class ProcessadorDocumentoService {
 
 		return jdbc.sql("""
 				SELECT m.id AS medida_id, x.objeto, m.metrica, m.valor_original,
-				       m.unidade_original, m.estado, e.pagina, e.trecho
+				       m.unidade_original, m.estado, x.condicoes::text AS condicoes, e.pagina, e.trecho
 				FROM estudo s
 				JOIN experimento x ON x.estudo_id = s.id
 				JOIN medida m ON m.experimento_id = x.id
@@ -131,8 +136,17 @@ public class ProcessadorDocumentoService {
 			.query((rs, row) -> new MedidaComEvidencia(
 				rs.getObject("medida_id", UUID.class), rs.getString("objeto"), rs.getString("metrica"),
 				rs.getString("valor_original"), rs.getString("unidade_original"), rs.getString("estado"),
+				lerCondicoes(rs.getString("condicoes")),
 				(rs.getObject("pagina") == null ? null : rs.getInt("pagina")), rs.getString("trecho")))
 			.list();
+	}
+
+	private tools.jackson.databind.JsonNode lerCondicoes(String json) {
+		try {
+			return objectMapper.readTree(json);
+		} catch (tools.jackson.core.JacksonException e) {
+			throw new IllegalStateException("Condições experimentais inválidas no banco de dados.", e);
+		}
 	}
 
 	@Transactional
@@ -177,12 +191,15 @@ public class ProcessadorDocumentoService {
 				RETURNING id
 				""")
 			.param("documento", versaoDocumento).param("execucao", execucaoId).query(UUID.class).single();
+		String condicoesJson = serializarCondicoes(medida.condicoes());
 		UUID experimentoId = jdbc.sql("""
-				INSERT INTO experimento (estudo_id, objeto) VALUES (:estudo, :objeto)
-				ON CONFLICT (estudo_id, objeto) DO UPDATE SET objeto = EXCLUDED.objeto
+				INSERT INTO experimento (estudo_id, objeto, condicoes)
+				VALUES (:estudo, :objeto, CAST(:condicoes AS jsonb))
+				ON CONFLICT (estudo_id, objeto, condicoes) DO UPDATE SET objeto = EXCLUDED.objeto
 				RETURNING id
 				""")
-			.param("estudo", estudoId).param("objeto", medida.objeto().trim()).query(UUID.class).single();
+			.param("estudo", estudoId).param("objeto", medida.objeto().trim())
+			.param("condicoes", condicoesJson).query(UUID.class).single();
 		UUID medidaId = jdbc.sql("""
 				INSERT INTO medida (experimento_id, metrica, valor_original, unidade_original, estado)
 				VALUES (:experimento, :metrica, :valor, :unidade, :estado) RETURNING id
@@ -215,6 +232,14 @@ public class ProcessadorDocumentoService {
 
 	private boolean vazio(String valor) {
 		return valor == null || valor.isBlank();
+	}
+
+	private String serializarCondicoes(Map<String, Object> condicoes) {
+		try {
+			return objectMapper.writeValueAsString(condicoes == null ? Map.of() : condicoes);
+		} catch (tools.jackson.core.JacksonException e) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "As condições experimentais não podem ser serializadas como JSON.", e);
+		}
 	}
 
 	private java.util.Optional<ResultadoProcessamentoDocumento> buscarExecucao(UUID documentoId, String chave) {
