@@ -60,6 +60,16 @@ class CatalogoPersistenciaTest {
     }
 
     @Test
+    void mesmoDoiComOutroIdentificadorOpenAlexEConflito() {
+        var original = candidata();
+        var obra = catalogo.registrar(original);
+        var outroId = new ObraEncontrada("OPENALEX","https://openalex.org/W9"+System.nanoTime()%1000000000L,original.doi(),original.titulo(),original.ano(),List.of());
+        assertThatThrownBy(() -> catalogo.registrar(outroId)).isInstanceOfSatisfying(ResponseStatusException.class,
+                e -> assertThat(e.getStatusCode().value()).isEqualTo(409));
+        assertThat(catalogo.obter(obra.id()).identificadores().stream().filter(i -> i.tipo().equals("OPENALEX"))).hasSize(1);
+    }
+
+    @Test
     void importacoesConcorrentesCriamUmaObraEUmSnapshot() throws Exception {
         var recebida = candidata();
         var iniciar = new CountDownLatch(1);

@@ -68,6 +68,11 @@ public class CatalogoService {
                 boolean outroDoi = jdbc.sql("SELECT EXISTS(SELECT 1 FROM identificador WHERE obra_id=:id AND tipo='DOI' AND valor<>:doi)")
                         .param("id", obra).param("doi", doi).query(Boolean.class).single();
                 if (outroDoi) throw conflito();
+                // Uma obra com identificador OpenAlex já definido não aceita outro: seria fusão silenciosa.
+                boolean outroOpenAlex = recebida.openAlexId() != null && jdbc.sql(
+                        "SELECT EXISTS(SELECT 1 FROM identificador WHERE obra_id=:id AND tipo='OPENALEX' AND valor<>:oa)")
+                        .param("id", obra).param("oa", recebida.openAlexId()).query(Boolean.class).single();
+                if (outroOpenAlex) throw conflito();
             }
             for (var id : ids) jdbc.sql("INSERT INTO identificador(obra_id,tipo,valor) VALUES (:obra,:tipo,:valor) ON CONFLICT DO NOTHING")
                     .param("obra", obra).param("tipo", id.tipo()).param("valor", id.valor()).update();
