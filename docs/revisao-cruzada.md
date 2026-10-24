@@ -152,3 +152,14 @@ Quatro agentes de leitura (segurança; escalabilidade e concorrência; testes e 
 - Operação: `server.error.include-message=always` vale para qualquer exceção em `/error`; worker sem healthcheck; `max-request-size` igual a `max-file-size`.
 
 Nada disso prova que o restante está correto: os agentes leram, não executaram, e a suíte completa roda no CI.
+
+### Itens adicionais corrigidos depois da passada (decisão do revisor, 2026-10-24)
+
+O autor delegou a escolha ao revisor. Foram tomados só os itens de risco claro e custo pequeno; o CI do último commit passou com 123 testes, 0 falhas.
+
+- Fila: `concluir` e `falhar` deixam de exigir reserva ainda válida; o token basta. Resolve o caso de uma execução gravada cuja tarefa virava `FALHOU`. Teste novo.
+- OpenAlex: a chave só é aceita com HTTPS ou loopback; configuração diferente falha na inicialização. Teste novo.
+- Upload: `max-request-size` com 1 MiB de folga sobre o arquivo.
+- Interface: botão de operação travado durante a consulta; `documentId` e `executionId` restaurados se abrir a evidência pela comparação falhar. Sem teste de navegador.
+
+Continuam fora, pelos motivos já listados: índice e `SKIP LOCKED` na fila, N+1 do catálogo, corpo sem limite do OpenAlex, healthcheck do worker, corridas restantes da tela e as lacunas de teste.
