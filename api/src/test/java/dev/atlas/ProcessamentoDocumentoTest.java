@@ -1,8 +1,10 @@
 package dev.atlas;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import tools.jackson.databind.JsonNode;
@@ -93,6 +95,30 @@ class ProcessamentoDocumentoTest {
 	@Test
 	void documentoInexistenteRetornaNaoEncontrado() throws Exception {
 		mvc.perform(post("/api/documentos/{id}/extracoes", UUID.randomUUID()))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void consultaTextoPorPaginaNaOrdemOriginal() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("Trecho da pagina inicial", "Trecho da segunda pagina"));
+		JsonNode processamento = processar(documento);
+		UUID execucao = UUID.fromString(processamento.get("execucaoId").asText());
+
+		mvc.perform(get("/api/documentos/{documentoId}/extracoes/{execucaoId}/paginas", documento, execucao))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].numero").value(1))
+				.andExpect(jsonPath("$[0].texto").value(org.hamcrest.Matchers.containsString("Trecho da pagina inicial")))
+				.andExpect(jsonPath("$[1].numero").value(2))
+				.andExpect(jsonPath("$[1].texto").value(org.hamcrest.Matchers.containsString("Trecho da segunda pagina")));
+	}
+
+	@Test
+	void naoConsultaExecucaoDeOutroDocumento() throws Exception {
+		UUID documento = enviarPdf(pdfComPaginas("Texto do documento"));
+		JsonNode processamento = processar(documento);
+		UUID execucao = UUID.fromString(processamento.get("execucaoId").asText());
+
+		mvc.perform(get("/api/documentos/{documentoId}/extracoes/{execucaoId}/paginas", UUID.randomUUID(), execucao))
 				.andExpect(status().isNotFound());
 	}
 

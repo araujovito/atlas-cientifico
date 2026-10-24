@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -96,6 +97,33 @@ public class ProcessadorDocumentoService {
 			return new ResultadoProcessamentoDocumento(
 					execucaoId, documento.id(), VERSAO_PROCESSADOR, estado, extracao.paginas().size(), false);
 		});
+	}
+
+	public List<PaginaPdf> listarPaginas(UUID documentoId, UUID execucaoId) {
+		boolean pertenceAoDocumento = jdbc.sql("""
+				SELECT EXISTS (
+				    SELECT 1 FROM execucao_processamento
+				    WHERE id = :execucao AND versao_documento_id = :documento
+				)
+				""")
+			.param("execucao", execucaoId)
+			.param("documento", documentoId)
+			.query(Boolean.class)
+			.single();
+
+		if (!pertenceAoDocumento) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Execução não encontrada para este documento.");
+		}
+
+		return jdbc.sql("""
+				SELECT numero, texto
+				FROM pagina_texto
+				WHERE execucao_id = :execucao
+				ORDER BY numero
+				""")
+			.param("execucao", execucaoId)
+			.query((rs, row) -> new PaginaPdf(rs.getInt("numero"), rs.getString("texto")))
+			.list();
 	}
 
 	private java.util.Optional<ResultadoProcessamentoDocumento> buscarExecucao(UUID documentoId, String chave) {
