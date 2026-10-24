@@ -78,6 +78,16 @@ Login correto zera os contadores do par e do e-mail. O e-mail não fica em claro
 
 Limites que seguem: **(1)** atrás de proxy o IP da conexão é o do proxy e todos dividem um balde; `ATLAS_LIMITES_CABECALHO_IP` usa o último valor do cabeçalho informado, o que só é seguro se a porta da aplicação for alcançável apenas pelo proxy. **(2)** quem controla muitos IPs consegue chegar aos 20 erros do e-mail e travar aquela conta por 15 minutos: é a troca por não permitir força bruta distribuída. **(3)** janela fixa admite até o dobro do limite na virada da janela. **(4)** upload, processamento e consultas ao OpenAlex ainda não têm limite por usuário.
 
+### Cota de armazenamento por conta (implementada em 2026-10-24)
+
+`atlas.cotas.bytes-por-usuario` (padrão 5 GiB) e `atlas.cotas.documentos-por-usuario` (padrão 5000). Os padrões são generosos e foram escolhidos pelo revisor, sem medição de uso nem de custo; são valores ajustáveis, não uma proibição, de acordo com o objetivo de guardar o maior número possível de documentos.
+
+- Recusa com 413 e mensagem com o uso atual, **antes** de gravar no disco; reenviar um PDF que a conta já tem devolve o existente e não consome cota.
+- A checagem definitiva roda numa transação com trava de aconselhamento por conta (`pg_advisory_xact_lock`), então dois envios simultâneos não passam juntos do limite. Teste com duas threads: um recebe 201 e o outro 413.
+- `GET /api/conta/uso` mostra o uso da própria conta, exibido na tela.
+- Se a gravação do arquivo ocorreu e o INSERT é recusado pela cota numa corrida, o arquivo fica no disco (pode ser compartilhado por hash com outra conta): resíduo recuperável, não vazamento.
+- A cota conta bytes de PDFs originais; não conta texto extraído, medidas nem metadados no banco.
+
 ## Fase B — limites para quem é público
 
 - Limite de taxa por usuário e por IP em upload, processamento e nas rotas que chamam o OpenAlex.

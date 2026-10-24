@@ -27,6 +27,8 @@ x-app: &app
     # Atrás de proxy TLS: nome do cabeçalho com o IP do cliente (ex.: X-Forwarded-For). Só se a porta da aplicação
     # for alcançável apenas pelo proxy; vazio usa o endereço da conexão e todos dividem um balde.
     ATLAS_LIMITES_CABECALHO_IP: ${ATLAS_LIMITES_CABECALHO_IP:-}
+    ATLAS_COTAS_BYTES_POR_USUARIO: ${ATLAS_COTAS_BYTES_POR_USUARIO:-5368709120}
+    ATLAS_COTAS_DOCUMENTOS_POR_USUARIO: ${ATLAS_COTAS_DOCUMENTOS_POR_USUARIO:-5000}
     ATLAS_CADASTRO: ${ATLAS_CADASTRO:-ABERTO}
     ATLAS_EMAILS_PERMITIDOS: ${ATLAS_EMAILS_PERMITIDOS:-}
     ATLAS_PDF_ORIGINAL: ${ATLAS_PDF_ORIGINAL:-DESABILITADO}

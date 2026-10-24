@@ -40,6 +40,17 @@ function mostrarConta(estado) {
   document.querySelector('#account-email').textContent = atlasUsuario?.email || '';
   document.querySelector('#auth-state').textContent = atlasUsuario ? 'Conta conectada.' : 'Entre ou crie uma conta para continuar.';
   document.querySelector('#auth-password').value = '';
+  if (atlasUsuario) mostrarUso(); else document.querySelector('#account-usage').textContent = '';
+}
+async function mostrarUso() {
+  const campo = document.querySelector('#account-usage');
+  try {
+    const response = await fetch('/api/conta/uso', {credentials:'same-origin', signal:AbortSignal.timeout(15000)});
+    if (!response.ok) { campo.textContent = ''; return; }
+    const uso = await response.json();
+    const mib = bytes => (bytes / (1024 * 1024)).toFixed(1);
+    campo.textContent = `Em uso: ${uso.documentos} de ${uso.documentosLimite} documentos · ${mib(uso.bytesUsados)} de ${mib(uso.bytesLimite)} MiB`;
+  } catch { campo.textContent = ''; }
 }
 async function carregarConta() {
   try { mostrarConta(await contaRequest('sessao')); }
