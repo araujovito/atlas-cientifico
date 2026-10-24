@@ -63,7 +63,7 @@
 
   <section id="candidate" hidden>
     <h2>3. Registrar uma medida candidata</h2>
-    <p class="muted">Para medidas com valor, copie um trecho literal do texto acima. O servidor confere se ele está na página indicada.</p>
+    <p class="muted">Para medidas com valor, copie um trecho do texto acima. O servidor tolera diferenças de espaços e quebras de linha, mas não diferenças de caracteres; se o trecho aparecer mais de uma vez, amplie a citação.</p>
     <form id="measure-form">
       <div class="row">
         <div><label for="object">Material ou objeto estudado</label><input id="object" required maxlength="300"></div>
@@ -85,7 +85,7 @@
       <label for="conditions">Condições experimentais (objeto JSON)</label>
       <textarea id="conditions">{}</textarea>
       <p class="muted">Exemplo: {"taxa_corrente":"190 mA/g","carga_catodo":"2.4 mg/cm²"}</p>
-      <div id="excerpt-field"><label for="excerpt">Trecho literal</label><textarea id="excerpt" maxlength="5000"></textarea></div>
+      <div id="excerpt-field"><label for="excerpt">Trecho de evidência</label><textarea id="excerpt" maxlength="5000"></textarea></div>
       <button id="save-button" type="submit">Salvar medida</button>
     </form>
   </section>

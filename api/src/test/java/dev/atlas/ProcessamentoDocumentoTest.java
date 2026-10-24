@@ -136,7 +136,7 @@ class ProcessamentoDocumentoTest {
 				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
 						.string(org.hamcrest.Matchers.containsString("Registrar uma medida candidata")))
 				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-						.string(org.hamcrest.Matchers.containsString("Trecho literal")));
+						.string(org.hamcrest.Matchers.containsString("Trecho de evid")));
 	}
 
 	@Test
