@@ -2,7 +2,7 @@
 
 Projeto pessoal de portfólio, sem vínculo com empregador. Independente de qualquer outro repositório do autor.
 
-**Legenda de estado.** Tudo neste documento está **Planejado**. Nada está implementado, testado ou medido. Quando isso mudar, cada item ganha o estado correspondente na seção 9.
+**Legenda de estado.** O roteiro em `docs/roteiro.md` é a fonte de verdade para o estado de implementação e testes de cada entrega. Esta especificação registra o desenho e as hipóteses; itens ainda não verificados continuam planejados.
 
 ## 1. Produto e diferencial
 

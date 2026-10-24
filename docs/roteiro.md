@@ -10,7 +10,7 @@ Objetivo: importar um PDF que a pessoa pode processar, extrair texto por página
 |---|---|---|---|
 | 1 | Esqueleto Spring Boot 4.1.1 / Java 21 com Postgres em Testcontainers | `./mvnw test` passa com Postgres real | testado |
 | 2 | Esquema inicial (migração Flyway): obra, versão do documento, execução, estudo, experimento, medida, evidência | A migração aplica num banco vazio; constraints impedem medida sem evidência e hash duplicado (6 testes; sem o gatilho de evidência o teste correspondente reprova) | testado |
-| 3 | Upload de PDF: valida tipo, tamanho e hash; guarda o original; devolve o registro | Teste: o mesmo arquivo enviado duas vezes gera um só registro; arquivo que não é PDF é recusado | planejado |
+| 3 | Upload de PDF com consentimento explícito: valida assinatura, tamanho e hash; guarda o original com nome derivado do hash; devolve o registro | Testes de integração: reenvio devolve o mesmo registro, conteúdo inválido e ausência de consentimento são recusados | testado |
 | 4 | Extração de texto por página (Apache PDFBox) | Teste com PDF de várias páginas devolve o texto de cada página; PDF sem texto vira estado `PRECISA_OCR` | planejado |
 | 5 | Execução de processamento com chave de idempotência (hash + versão do processador) | Reprocessar não duplica páginas nem medidas | planejado |
 | 6 | Medidas com evidência a partir de extração pré-gravada (sem chamada paga) | Cada medida tem página e trecho; `valor_original` e unidade preservados | planejado |
@@ -19,7 +19,7 @@ Objetivo: importar um PDF que a pessoa pode processar, extrair texto por página
 
 Dependências: Docker (presente), JDK 21 (instalado em `~/.local/jdk`, ver `docs/ambiente.md`).
 
-Limitações conhecidas desta entrega: um domínio, poucos campos, sem OCR, sem Kafka (o processamento ainda é síncrono; a decisão de fila entra na entrega 3).
+Limitações conhecidas desta entrega: um domínio, poucos campos, sem OCR, sem Kafka (o processamento ainda é síncrono; a decisão de fila entra na entrega 3). O upload só registra e armazena o documento; a extração e a exibição de evidência continuam planejadas.
 
 ## Entregas seguintes
 
